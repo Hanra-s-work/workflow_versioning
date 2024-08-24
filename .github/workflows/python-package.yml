@@ -1,4 +1,4 @@
-name: colourise-output-pypi
+name: hl-hello-world-pypi
 
 on:
   push:
@@ -7,11 +7,12 @@ on:
   workflow_dispatch:
 
 env:
+  CWD: "./py_hello_world_lib"
   SETUP_FILE: setup.py
   TAG_FILE: version.txt
   IS_RELEASE: is_release.txt
   MATRIX_VERSION_PUBLISHING: "3.10"
-  SOURCE_CODE_PATH: colourise_output/colourise_output.py
+  SOURCE_CODE_PATH: hl_hello_world/hl_hello_world.py
   LATEST_TAG: ""
 
 jobs:
@@ -35,6 +36,7 @@ jobs:
     - name: Get Latest Tag
       id: get_latest_tag
       run: |
+        cd ${{env.CWD}}
         echo "Getting tags"
         # git fetch --tags # Make sure to fetch the tags first
         echo "Updated the list"
@@ -59,6 +61,7 @@ jobs:
 
     - name: Update module version in source code and builder file
       run: |
+        cd ${{env.CWD}}
         latest_tag="$(cat ${{env.TAG_FILE}})"
         if [ -f ${{env.SETUP_FILE}} ]
         then
@@ -76,15 +79,17 @@ jobs:
 
     - name: Install dependencies
       run: |
+        cd ${{env.CWD}}
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
         lib_packages=$(find ./*/ -name "requirements.txt" -type f)
         first_requirement=$(echo $lib_packages | cut -d " " -f 1)
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ ${#first_requirements} -gt 0 ]; then pip install -r $first_requirements.txt; fi
+        if [ ${#first_requirements} -gt 0 ]; then pip install -r $first_requirements; fi
     
     - name: Lint with flake8
       run: |
+        cd ${{env.CWD}}
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
@@ -92,10 +97,12 @@ jobs:
     
     - name: Test with pytest
       run: |
+        cd ${{env.CWD}}
         pytest
 
     - name: building the package
       run: |
+        cd ${{env.CWD}}
         pip install build
         python -m build
 
@@ -103,6 +110,7 @@ jobs:
     - name: Build and publish to PyPI
       if: startsWith(github.ref, 'refs/tags/') && matrix.python-version == env.MATRIX_VERSION_PUBLISHING
       run: |
+        cd ${{env.CWD}}
         python -m build
         pip install twine
         twine upload dist/* --verbose

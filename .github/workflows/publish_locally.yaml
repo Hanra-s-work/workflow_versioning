@@ -1,4 +1,4 @@
-name: colourise-output-gh-packages
+name: hl-hello-world-gh-packages
 
 on:
   push:
@@ -12,11 +12,12 @@ permissions:
   id-token: write
 
 env:
+  CWD: "./py_hello_world_lib"
   SETUP_FILE: setup.py
   TAG_FILE: version.txt
   IS_RELEASE: is_release.txt
   MATRIX_VERSION_PUBLISHING: "3.10"
-  SOURCE_CODE_PATH: colourise_output/colourise_output.py
+  SOURCE_CODE_PATH: hl_hello_world/hl_hello_world.py
   LATEST_TAG: ""
 
 jobs:
@@ -40,6 +41,7 @@ jobs:
     - name: Get Latest Tag
       id: get_latest_tag
       run: |
+        cd ${{env.CWD}}
         echo "Getting tags"
         # git fetch --tags # Make sure to fetch the tags first
         echo "Updated the list"
@@ -64,6 +66,7 @@ jobs:
 
     - name: Update module version in source code and builder file
       run: |
+        cd ${{env.CWD}}
         latest_tag="$(cat ${{env.TAG_FILE}})"
         if [ -f ${{env.SETUP_FILE}} ]
         then
@@ -81,15 +84,17 @@ jobs:
 
     - name: Install dependencies
       run: |
+        cd ${{env.CWD}}
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
         lib_packages=$(find ./*/ -name "requirements.txt" -type f)
         first_requirement=$(echo $lib_packages | cut -d " " -f 1)
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ ${#first_requirements} -gt 0 ]; then pip install -r $first_requirements.txt; fi
+        if [ ${#first_requirements} -gt 0 ]; then pip install -r $first_requirements; fi
     
     - name: Lint with flake8
       run: |
+        cd ${{env.CWD}}
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
@@ -97,15 +102,18 @@ jobs:
     
     - name: Test with pytest
       run: |
+        cd ${{env.CWD}}
         pytest
 
     - name: building the package
       run: |
+        cd ${{env.CWD}}
         pip install build
         python -m build
 
     - name: Update author
       run: |
+        cd ${{env.CWD}}
         git config --local user.name "${{secrets.USER_NAME_E}}"
         git config --local user.email "${{secrets.USER_EMAIL_E}}"
 
@@ -114,10 +122,10 @@ jobs:
       if: matrix.python-version == env.MATRIX_VERSION_PUBLISHING
       run: |
         echo "Listing directory:"
-        ls -a
+        ls -a ${{env.CWD}}
         {
           echo 'UG<<EOF'
-          ls dist/*
+          ls ${{env.CWD}}/dist/*
           echo EOF
         } >> "$GITHUB_OUTPUT"
 
@@ -125,6 +133,7 @@ jobs:
       id: commit-title
       if: matrix.python-version == env.MATRIX_VERSION_PUBLISHING
       run: |
+        cd ${{env.CWD}}
         TAG_NAME="${{env.LATEST_TAG}}"
         echo "Found file=$TAG_NAME"
         COMMIT_TITLE="$(git tag -l --format='%(subject)' $TAG_NAME)"
@@ -140,6 +149,7 @@ jobs:
       id: body-message
       if: matrix.python-version == env.MATRIX_VERSION_PUBLISHING
       run: |
+        cd ${{env.CWD}}
         if [ "${{env.LATEST_TAG}}" = "" ]
         then
           echo "Tag name not found"
