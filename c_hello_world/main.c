@@ -7,6 +7,10 @@
 
 #include <stdio.h>
 
+/**
+ * @brief This is the main function of the program
+ * @return int
+*/
 int main(void)
 {
     printf("Hello, World!\n");
