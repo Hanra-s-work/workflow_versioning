@@ -1,37 +1,14 @@
 ##
-# EPITECH PROJECT, 2022
-# Desktop_pet (Workspace)
+# EPITECH PROJECT, 2024
+# workflow_versioning (Workspace)
 # File description:
-# colourise_output.py
+# hl_hello_world.py
 ##
 
-"""
-The file containing the code in charge of outputting
-coloured text into the terminal.
-This class follows the batch colour coding rules (from 0 to F for foreground and background)
-"""
 
-from typing import TextIO, Union
-import os
-import sys
-import platform
-try:
-    import colorama as COC
-except ImportError as e:
-    msg = "Fatal Error (Colourise Output):"
-    msg += "Failed to load Colorama, core dependency for Colourise Output."
-    msg += " Aborting.\nImport error msg:"
-    raise RuntimeError(msg) from e
-
-ALL = "*"
-BOLD = "bold"
-DIM = "dim"
-ITALIC = "italic"
-UNDERLINE = "underline"
-BLINK = "blink"
-INVERT = "invert"
-CONCEALED = "concealed"
-STRIKE = "strike"
+"""
+The file containing the code for a perfect hello world library.
+"""
 
 
 class HLHelloWorld:
