@@ -1,0 +1,52 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "C:/cygwin64/lib/gcc/x86_64-pc-cygwin/*/include/**",
+                "${workspaceFolder}/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "C:/cygwin64/bin/gcc",
+            "intelliSenseMode": "linux-gcc-x64",
+            "cStandard": "c99",
+            "cppStandard": "gnu++17",
+            "compilerPathInCppPropertiesJson": "C:/cygwin64/bin/gcc",
+            "mergeConfigurations": false,
+            "browse": {
+                "path": [
+                    "c:/Users/Henry_PC/Documents/001_GitHub/henral/workflow_versioning/**",
+                    "${workspaceFolder}"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        },
+        {
+            "name": "epitech",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "mergeConfigurations": false,
+            "browse": {
+                "path": [
+                    "c:/Users/Henry_PC/Documents/001_GitHub/henral/workflow_versioning/**",
+                    "c:/Users/Henry_PC/Documents/001_GitHub/henral/workflow_versioning"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "intelliSenseMode": "linux-gcc-x64",
+            "cStandard": "c99",
+            "cppStandard": "gnu++17"
+        }
+    ],
+    "version": 4
+}
