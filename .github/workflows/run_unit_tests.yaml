@@ -1,5 +1,7 @@
 name: run_unit_tests
 
+# version: 1.0.0
+
 on:
   push:
     tags:

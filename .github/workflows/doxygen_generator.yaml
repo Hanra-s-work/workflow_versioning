@@ -1,5 +1,7 @@
 name: doxygen_generator
 
+# version: 1.0.0
+
 on:
   push:
     tags:

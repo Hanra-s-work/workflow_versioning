@@ -1,5 +1,7 @@
 name: hl-hello-world-gh-packages
 
+# version: 1.0.0
+
 on:
   push:
     tags:

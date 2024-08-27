@@ -1,5 +1,7 @@
 name: hl-hello-world-pypi
 
+# version: 1.0.0
+
 on:
   push:
     tags:
