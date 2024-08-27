@@ -1,6 +1,9 @@
 name: run_unit_tests
 
-# version: 1.0.0
+# version: 1.0.1
+# Version log:
+  # 1.0.0: Initial version
+  # 1.0.1: Add the xvfb library to the actions for any graphical environements
 
 on:
   push:
@@ -139,6 +142,10 @@ jobs:
         echo "Content: $(ls)"
         echo "Content of file: $(cat ${{env.SETUP_FILE}})"
         echo -e "\n\n\n\n\n\n\n\n\n"
+
+    - name: Install xvfb
+      run: sudo apt-get install xvfb
+
     - name: Install dependencies
       run: |
         cd ${{env.CWD}}
@@ -185,4 +192,4 @@ jobs:
     - name: Test with pytest
       run: |
         cd ${{env.CWD}}
-        pytest -s
+        xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" pytest -s
