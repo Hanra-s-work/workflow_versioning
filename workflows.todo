@@ -1,0 +1,85 @@
+# Python
+## modules
+[x] pypi
+[x] github packages
+
+# C
+[ ] Libraries
+[ ] dynamic Libraries
+[ ] binaries
+
+# C++
+[ ] Libraries
+[ ] dynamic Libraries
+[ ] binaries
+
+# documentation
+[ ] doxygen
+
+# binaries
+[ ] exe
+[ ] dmg
+[ ] appimage
+[ ] MyApp.app
+
+# packages
+[ ] deb
+[ ] rpm
+[ ] apk
+[ ] msi
+[ ] ipk
+[ ] gem
+[ ] snap
+[ ] opkg
+[ ] eopkg
+[ ] solaris
+[ ] flatpak
+[ ] casks
+[ ] formulae
+[ ] nix packages
+[ ] conda packages
+[ ] chocolatey packages
+[ ] .pkg.tar.zst (ark linux)
+
+# To package managers:
+brew, fpm, winget, chocolatey, homebrew, conda, nix, pkgbuild, pkgsrc, macports, openwrt, rpm-macros, gemspec, gemfile.
+Here's a breakdown of the package managers you listed, along with the names of the packages they manage:
+
+1. **brew** and **homebrew**:
+   - **Packages Managed**: Typically referred to as **formulae** (for individual software packages) and **casks** (for macOS applications distributed as binaries).
+
+2. **fpm**:
+   - **Packages Managed**: FPM (Effing Package Management) is not a package manager but a tool for creating packages. It can generate packages in various formats like `.deb`, `.rpm`, `.tar.gz`, etc., depending on the target system.
+
+3. **winget**:
+   - **Packages Managed**: The packages are generally called **packages** or **manifests** (referring to the configuration files that describe the package).
+
+4. **chocolatey**:
+   - **Packages Managed**: These are called **chocolatey packages** or just **packages**.
+
+5. **conda**:
+   - **Packages Managed**: Referred to as **conda packages**.
+
+6. **nix**:
+   - **Packages Managed**: Referred to as **nix packages** or **derivations**.
+
+7. **pkgbuild**:
+   - **Packages Managed**: Used to build **Arch Linux packages**, typically ending in `.pkg.tar.zst`.
+
+8. **pkgsrc**:
+   - **Packages Managed**: Referred to as **pkgsrc packages**.
+
+9. **macports**:
+   - **Packages Managed**: Called **ports** or **MacPorts packages**.
+
+10. **openwrt**:
+    - **Packages Managed**: Referred to as **OpenWrt packages** or **opkg packages**.
+
+11. **rpm-macros**:
+    - **Packages Managed**: Not a package manager; these are macros used within the RPM packaging system to aid in building and managing RPM packages.
+
+12. **gemspec**:
+    - **Packages Managed**: A **gemspec** file is used to define a **Ruby gem**. The packages are called **gems**.
+
+13. **gemfile**:
+    - **Packages Managed**: The **Gemfile** lists Ruby **gems** (packages) required for a project, used by Bundler to manage dependencies.
