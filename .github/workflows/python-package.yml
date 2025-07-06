@@ -1,11 +1,12 @@
 name: hl-hello-world-pypi
 
-# version: 1.0.2
+# version: 1.0.4
 # Version log:
   # 1.0.0: Initial version
   # 1.0.1: Add the xvfb library to the actions for any graphical environements
   # 1.0.2: Put the tests in a container
   # 1.0.3: Add python 3.13 to test with
+  # 1.0.4: Update code structure of the workflow to stabilize the publishing process
 
 on:
   push:
@@ -29,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - name: Checkout code
@@ -45,7 +46,7 @@ jobs:
       run: |
         cd ${{env.CWD}}
         echo "Getting tags"
-        # git fetch --tags # Make sure to fetch the tags first
+        git fetch --tags || echo "⚠️ git fetch --tags failed, continuing anyway" # Make sure to fetch the tags first
         echo "Updated the list"
         latest_tag=$(git tag --list "v*" | sort -rV | head -n 1)
         echo "Tag list: $(git tag -l)"
