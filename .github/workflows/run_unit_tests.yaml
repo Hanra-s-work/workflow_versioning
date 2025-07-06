@@ -5,6 +5,8 @@ name: run_unit_tests
   # 1.0.0: Initial version
   # 1.0.1: Add the xvfb library to the actions for any graphical environements
   # 1.0.2: Put the test in a docker container
+  # 1.0.3: Add the python 3.13 to the test suite
+  
 
 on:
   push:
@@ -33,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - name: Checkout code
