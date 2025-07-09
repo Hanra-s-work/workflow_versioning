@@ -1,0 +1,2 @@
+# The requirements script that allows the dev dependencies to be installed
+-r ./dev/requirements.txt

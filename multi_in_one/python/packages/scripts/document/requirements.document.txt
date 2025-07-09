@@ -1,0 +1,2 @@
+# The sphinx documentation generator
+Sphinx == 8.2.3

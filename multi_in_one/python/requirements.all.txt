@@ -1,0 +1,10 @@
+# The requirements file that will install all the available requirements in the packages section
+
+# The source requirements
+-r ./requirements.txt
+
+# The dev requirements
+-r ./requirements.dev.txt
+
+# The scripts requirements
+-r ./requirements.scripts.txt

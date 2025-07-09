@@ -1,0 +1,2 @@
+# The requirements file that will allow one to easily install the dependency files contained in the packages/src folder
+-r ./source/requirements.txt

@@ -1,0 +1,7 @@
+# Installing the requirements for the development section of the program, this will also install the default requirements
+
+# The default requirements
+-r ./requirements.txt
+
+# The dev requirements
+-r ./packages/requirements.dev.txt

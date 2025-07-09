@@ -1,0 +1,14 @@
+# The dependencies for the program to be able to compile as a binary
+-r ./compile/requirements.compile.txt
+
+# The requirements for the program to be able to compile as a library
+-r ./lib/requirements.lib.txt
+
+# The requirements for the program to be able to generate it's own documentation
+-r ./document/requirements.document.txt
+
+# The requirements for the program to be able to run it's tests
+-r ./test/requirements.test.txt
+
+# The requirements for the coverage libraries
+-r ./coverage/requirements.coverage.txt

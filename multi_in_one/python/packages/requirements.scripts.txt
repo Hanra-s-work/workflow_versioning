@@ -1,0 +1,2 @@
+# The dependencies located in scripts
+-r ./scripts/requirements.scripts.txt

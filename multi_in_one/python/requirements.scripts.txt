@@ -1,0 +1,2 @@
+# The file that will install all the requirements in the script folder
+-r ./packages/requirements.scripts.txt

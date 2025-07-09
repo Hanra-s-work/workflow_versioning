@@ -1,0 +1,15 @@
+# No environement folders
+env
+.env
+lenv
+menv
+wenv
+
+# No vscode environments
+.vscode
+
+# No python cache folders
+__pycache__
+
+# No pytest cache folders
+.pytest_cache

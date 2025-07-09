@@ -1,0 +1,2 @@
+# Installing the requirements for the program located in packages/source
+-r ./packages/requirements.source.txt
