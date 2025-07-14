@@ -1,14 +1,16 @@
 name: hl-hello-world-pypi
 
-# version: 1.0.6
+# version: 1.0.8
 # Version log:
   # 1.0.0: Initial version
   # 1.0.1: Add the xvfb library to the actions for any graphical environments
   # 1.0.2: Put the tests in a container
   # 1.0.3: Add python 3.13 to test with
-  # 1.0.4: Update code structure of the workflow to stabilize the publishing process
-  # 1.0.5: Update code to install the package before running the tests
-  # 1.0.6: Update code to automatically install pytest in the docker container
+  # 1.0.4: Update the code structure of the workflow to stabilize the publishing process
+  # 1.0.5: Update the code to install the package before running the tests
+  # 1.0.6: Update the code to automatically install pytest in the docker container
+  # 1.0.7: Update the code to only update the version of the files based on the present ones.
+  # 1.0.8: Update the code to install the package before running the unit tests
 
 on:
   push:
@@ -65,7 +67,7 @@ jobs:
         echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
         echo -e "\n\n\n\n\n\n\n\n\n"
         echo "new_tag = $latest_tag"
-        echo "env.new_tag = ${{env.tag_file}}"
+        echo "env.new_tag = ${{env.TAG_FILE}}"
         echo "cat env.new_tag = $(cat ${{env.TAG_FILE}})"
         echo "env.LATEST_TAG = ${{env.LATEST_TAG}}"
         echo -e "\n\n\n\n\n\n\n\n\n"
@@ -74,24 +76,29 @@ jobs:
       run: |
         cd ${{env.CWD}}
         latest_tag="$(cat ${{env.TAG_FILE}})"
-        if [ -f ${{env.SETUP_FILE}} ]
-        then
-          echo "Updating version in ${{env.SETUP_FILE}}"
-          echo -e "\n\n\n\n\n\n\n\n\n"
-          echo "Tag: $latest_tag"
-          latest_tag=${latest_tag/"v"/""}
-          echo "Tag: $latest_tag"
+        echo "Updating version in ${{env.SETUP_FILE}}"
+        echo -e "\n\n\n\n\n\n\n\n\n"
+        echo "Tag: $latest_tag"
+        latest_tag=${latest_tag/"v"/""}
+        echo "Tag: $latest_tag"
+        if [ -f ${{env.SETUP_FILE}} ] ; then
           echo "Updating the version in ${{env.SETUP_FILE}}"
           sed -i "s/version='.*'/version='$latest_tag'/g" ${{env.SETUP_FILE}}
           sed -i "s/version = '.*'/version = '$latest_tag'/g" ${{env.SETUP_FILE}}
+          echo "Content of file: $(cat ${{env.SETUP_FILE}})"
+        fi
+        if [ -f ${{env.TOML_SETUP_FILE}} ]; then
           echo "Updating the version in ${{env.TOML_SETUP_FILE}}"
           sed -i "s/version='.*'/version='$latest_tag'/g" ${{env.TOML_SETUP_FILE}}
           sed -i "s/version = '.*'/version = '$latest_tag'/g" ${{env.TOML_SETUP_FILE}}
+          echo "Content of file: $(cat ${{env.TOML_SETUP_FILE}})"
+        fi
+        if [ -f ${{env.SOURCE_CODE_PATH}} ]; then
           echo "Updating the version in ${{env.SOURCE_CODE_PATH}}"
           sed -i "s/self.__version__ = '.*'/self.__version__ = '$latest_tag'/g" ${{env.SOURCE_CODE_PATH}}
+          echo "Content of file: $(cat ${{env.SOURCE_CODE_PATH}})"
         fi
         echo "Content: $(ls)"
-        echo "Content of file: $(cat ${{env.SETUP_FILE}})"
         echo -e "\n\n\n\n\n\n\n\n\n"
 
     - name: Install xvfb
