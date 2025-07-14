@@ -12,3 +12,9 @@
 
 # The requirements for the coverage libraries
 -r ./coverage/requirements.coverage.txt
+
+# The tty graphical overlay library
+-r ./tui/requirements.tui.txt
+
+# Global dependencies
+ask_question==1.2.10
