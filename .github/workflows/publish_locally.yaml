@@ -1,11 +1,14 @@
 name: hl-hello-world-gh-packages
 
-# version: 1.0.2
+# version: 1.0.6
 # Version log:
   # 1.0.0: Initial version
-  # 1.0.1: Add the xvfb library to the actions for any graphical environements
+  # 1.0.1: Add the xvfb library to the actions for any graphical environments
   # 1.0.2: Put the tests in a container
   # 1.0.3: Add python 3.13 to test with
+  # 1.0.4: Update code structure of the workflow to stabilize the publishing process
+  # 1.0.5: Update code to install the package before running the tests
+  # 1.0.6: Update code to automatically install pytest in the docker container
 
 on:
   push:
@@ -21,6 +24,7 @@ permissions:
 env:
   CWD: "./py_hello_world_lib"
   SETUP_FILE: setup.py
+  TOML_SETUP_FILE: pyproject.toml
   TAG_FILE: version.txt
   IS_RELEASE: is_release.txt
   MATRIX_VERSION_PUBLISHING: "3.10"
@@ -34,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - name: Checkout code
@@ -50,7 +54,7 @@ jobs:
       run: |
         cd ${{env.CWD}}
         echo "Getting tags"
-        # git fetch --tags # Make sure to fetch the tags first
+        git fetch --tags || echo "⚠️ git fetch --tags failed, continuing anyway" # Make sure to fetch the tags first
         echo "Updated the list"
         latest_tag=$(git tag --list "v*" | sort -rV | head -n 1)
         echo "Tag list: $(git tag -l)"
@@ -82,7 +86,13 @@ jobs:
           echo "Tag: $latest_tag"
           latest_tag=${latest_tag/"v"/""}
           echo "Tag: $latest_tag"
+          echo "Updating the version in ${{env.SETUP_FILE}}"
           sed -i "s/version='.*'/version='$latest_tag'/g" ${{env.SETUP_FILE}}
+          sed -i "s/version = '.*'/version = '$latest_tag'/g" ${{env.SETUP_FILE}}
+          echo "Updating the version in ${{env.TOML_SETUP_FILE}}"
+          sed -i "s/version='.*'/version='$latest_tag'/g" ${{env.TOML_SETUP_FILE}}
+          sed -i "s/version = '.*'/version = '$latest_tag'/g" ${{env.TOML_SETUP_FILE}}
+          echo "Updating the version in ${{env.SOURCE_CODE_PATH}}"
           sed -i "s/self.__version__ = '.*'/self.__version__ = '$latest_tag'/g" ${{env.SOURCE_CODE_PATH}}
         fi
         echo "Content: $(ls)"
@@ -114,7 +124,7 @@ jobs:
       run: |
         cd ${{env.CWD}}
         docker run -t -e DEBIAN_FRONTEND=noninteractive -v "$(pwd)":"/home" ubuntu /bin/bash -c "
-          echo 'Upating ubuntu version' && \
+          echo 'Updating ubuntu version' && \
           apt update && apt upgrade -y && \
           echo 'Installing required dependencies' && \
           apt install -y xvfb software-properties-common && \
@@ -130,6 +140,7 @@ jobs:
           cd /home && \
           echo 'Installing requirements' && \
           pip3 install -r requirements.txt  --break-system-packages && \
+          pip3 install pytest  --break-system-packages && \
           echo 'Running the tests' && \
           pytest -s
         "

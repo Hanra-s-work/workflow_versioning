@@ -1,11 +1,14 @@
 name: run_unit_tests
 
-# version: 1.0.2
+# version: 1.0.6
 # Version log:
   # 1.0.0: Initial version
-  # 1.0.1: Add the xvfb library to the actions for any graphical environements
+  # 1.0.1: Add the xvfb library to the actions for any graphical environments
   # 1.0.2: Put the test in a docker container
   # 1.0.3: Add the python 3.13 to the test suite
+  # 1.0.4: Update code structure of the workflow to stabilize the publishing process
+  # 1.0.5: Update code to install the package before running the tests
+  # 1.0.6: Update code to automatically install pytest in the docker container
   
 
 on:
@@ -21,12 +24,8 @@ on:
 
 env:
   CWD: "./py_hello_world_lib"
-  SETUP_FILE: setup.py
-  TAG_FILE: version.txt
-  IS_RELEASE: is_release.txt
   MATRIX_VERSION_PUBLISHING: "3.10"
-  MAX_TAG_AGE: "1 hour"
-  SOURCE_CODE_PATH: hl_hello_world/hl_hello_world.py
+
 
 jobs:
 
@@ -35,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - name: Checkout code
@@ -45,106 +44,6 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Get Latest Tag
-      id: get_latest_tag
-      run: |
-        cd ${{env.CWD}}
-        tag_list="$(git ls-remote --tags origin "v*" | awk '{print $2}' | sed 's/refs\/tags\///;s/\^{}//')"
-        echo "Updated the list"
-        latest_tag=$(echo "$tag_list" | sort -rV | head -n 1)
-        echo "Latest tag = $latest_tag"
-        if [ "$latest_tag" == "" ]; then
-          echo "No tags found matching 'v*'."
-          latest_tag="v1.0.0"
-          echo "Using a default tag: $latest_tag"
-        else
-          echo "Latest Tag: $latest_tag"
-        fi
-        echo "$latest_tag" > ${{env.TAG_FILE}}
-        echo -e "\n\n\n\n\n\n\n\n\n"
-        echo "new_tag = $latest_tag"
-        echo "env.new_tag = ${{env.tag_file}}"
-        echo "cat env.new_tag = $(cat ${{env.TAG_FILE}})"
-        echo -e "\n\n\n\n\n\n\n\n\n"
-
-    - name: Check if Latest Tag is a Release
-      id: is_release
-      run: |
-        cd ${{env.CWD}}
-        latest_tag="$(cat ${{env.TAG_FILE}})"
-        is_release="false"
-        tag_list="$(git ls-remote --tags origin "v*" | awk '{print $2}' | sed 's/refs\/tags\///;s/\^{}//')"
-        latest_updated_tag=$(echo $tag_list |tr ' ' '\n' | sort -rV | head -n 1)
-        if [[ $latest_updated_tag == $latest_tag ]]; then
-          is_release="true"
-        fi
-        echo "$is_release" > ${{env.IS_RELEASE}}
-        echo -e "\n\n\n\n\n\n\n\n\n"
-        echo "Is_release = $is_release"
-        echo "env.Is_release = ${{env.is_release}}"
-        echo "cat env.Is_release = $(cat ${{env.is_release}})"
-        echo -e "\n\n\n\n\n\n\n\n\n"
-
-    - name: Increment Tag Version
-      id: increment_tag
-      run: |
-        cd ${{env.CWD}}
-        is_release="$(cat ${{env.IS_RELEASE}})"
-        latest_tag="$(cat ${{env.TAG_FILE}})"
-        echo "ls = $(ls)"
-        echo "is_release = $is_release"
-        echo "latest_tag = $latest_tag"
-        if [[ $is_release == "true" ]]; then
-          # Parse the latest tag and increment the version component you want
-          # Example: Convert "v1.2.3" to "v1.2.4"
-          new_tag="${latest_tag/v/}"  # Remove the leading "v"
-          echo "new_tag = $new_tag"
-          IFS='.' read -ra version <<< "$new_tag"
-          echo "declare -p version = $(declare -p $version)"
-          echo "declare -p version[0] = $(declare -p ${version[0]})"
-          echo "declare -p version[1] = $(declare -p ${version[1]})"
-          echo "declare -p version[2] = $(declare -p ${version[2]})"
-          echo "version[2]+1 = $(expr "${version[2]}" + 1)"
-          echo "version[*] = ${version[*]}"
-          echo "version = ${version}"
-          echo "#version = ${#version}"
-          echo "version[0] = ${version[0]}"
-          echo "version[1] = ${version[1]}"
-          echo "version[2] = ${version[2]}"
-          version[2]=$(expr "${version[2]}" + 1)  # Increment the third version component
-          echo "Version = ${version[*]}"
-          new_tag="v${version[0]}.${version[1]}.${version[2]}"
-          echo "New Tag: $new_tag"
-          echo "$new_tag" > ${{env.TAG_FILE}}
-        else
-          echo "Latest tag is not a release. Skipping tag increment."
-        fi
-        echo -e "\n\n\n\n\n\n\n\n\n"
-        echo "new_tag = $new_tag"
-        echo "env.new_tag = ${{env.TAG_FILE}}"
-        echo "env.is_release = $(cat ${{env.IS_RELEASE}})"
-        echo "cat env.new_tag = $(cat ${{env.TAG_FILE}})"
-        echo "cat env.is_release = $(cat ${{env.IS_RELEASE}})"
-        echo -e "\n\n\n\n\n\n\n\n\n"
-
-    - name: Update module version in source code and builder file
-      run: |
-        cd ${{env.CWD}}
-        latest_tag="$(cat ${{env.TAG_FILE}})"
-        if [ -f ${{env.SETUP_FILE}} ]
-        then
-          echo "Updating version in ${{env.SETUP_FILE}}"
-          echo -e "\n\n\n\n\n\n\n\n\n"
-          echo "Tag: $latest_tag"
-          latest_tag=${latest_tag/"v"/""}
-          echo "Tag: $latest_tag"
-          sed -i "s/version='.*'/version='$latest_tag'/g" ${{env.SETUP_FILE}}
-        sed -i "s/self.__version__ = '.*'/self.__version__ = '$latest_tag'/g" ${{env.SOURCE_CODE_PATH}}
-        fi
-        echo "Content: $(ls)"
-        echo "Content of file: $(cat ${{env.SETUP_FILE}})"
-        echo -e "\n\n\n\n\n\n\n\n\n"
 
     - name: Install xvfb
       run: sudo apt-get install xvfb
@@ -170,19 +69,9 @@ jobs:
     - name: building the package
       run: |
         cd ${{env.CWD}}
-        latest_tag="$(cat ${{env.TAG_FILE}})"
-        if [ -f ${{env.SETUP_FILE}} ]
-        then
-          echo "Updating version in ${{env.SETUP_FILE}}"
-          echo -e "\n\n\n\n\n\n\n\n\n"
-          echo "Tag: $latest_tag"
-          latest_tag=${latest_tag/"v"/""}
-          echo "Tag: $latest_tag"
-          sed -i "s/version='.*'/version='$latest_tag'/g" ${{env.SETUP_FILE}}
-        fi
         pip install build
         python -m build
-    
+
     - name: Installing the package
       run: |
         cd ${{env.CWD}}
@@ -196,7 +85,7 @@ jobs:
       run: |
         cd ${{env.CWD}}
         docker run -t -e DEBIAN_FRONTEND=noninteractive -v "$(pwd)":"/home" ubuntu /bin/bash -c "
-          echo 'Upating ubuntu version' && \
+          echo 'Updating ubuntu version' && \
           apt update && apt upgrade -y && \
           echo 'Installing required dependencies' && \
           apt install -y xvfb software-properties-common && \
@@ -212,6 +101,7 @@ jobs:
           cd /home && \
           echo 'Installing requirements' && \
           pip3 install -r requirements.txt  --break-system-packages && \
+          pip install pytest  --break-system-packages  && \
           echo 'Running the tests' && \
           pytest -s
         "
