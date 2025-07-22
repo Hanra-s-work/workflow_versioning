@@ -38,7 +38,7 @@ PYTHON_FOUND=$FALSE
 
 function compile {
     echo "compile"
-    ${SCRIPTS_DIR}/compile/compile.sh
+    ${PYTHON} ${SCRIPTS_DIR}/compile
     return $?
 }
 
