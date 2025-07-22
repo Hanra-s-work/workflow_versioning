@@ -389,7 +389,7 @@ class Compile:
         """ Function in charge of checking if the location of the compilation path (where generation data is stored) is to be the default or a user defines one """
         if self.build_location is None:
             self.build_location = os.path.join(self.cwd, "build")
-        final = f"--workpath {self.build_location}"
+        final = f"--workpath \"{self.build_location}\""
         self.print_debug(f"workpath: {final}")
         return final
 
@@ -397,7 +397,7 @@ class Compile:
         """ Function in charge of checking if the location of the distribution path (where the final build will be located) is to be the default or a user defined one """
         if self.dist_location is None:
             self.dist_location = os.path.join(self.cwd, "dist")
-        final = f"--distpath {self.dist_location}"
+        final = f"--distpath \"{self.dist_location}\""
         self.print_debug(f"distpath: {final}")
         return final
 
@@ -419,7 +419,7 @@ class Compile:
 
     def process_name(self) -> str:
         """ Function in charge of formating the name in a way that pyinstaller will understand """
-        bin_name = f"--name {self.bin_name}"
+        bin_name = f"--name \"{self.bin_name}\""
         self.print_debug(f"bin_name = {bin_name}")
         return bin_name
 
@@ -449,7 +449,7 @@ class Compile:
             return self.error
         compilation_line = []
         compilation_line.append(self.compiler_binary)
-        compilation_line.append(self.source_file)
+        compilation_line.append(f"\"{self.source_file}\"")
         compilation_line.append(self.process_workpath())
         compilation_line.append(self.process_distribution_path())
         compilation_line.append(self.process_onefile())
