@@ -17,4 +17,4 @@
 -r ./tui/requirements.tui.txt
 
 # Global dependencies
-ask_question==1.2.10
+ask_question==1.2.12
