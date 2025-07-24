@@ -131,7 +131,15 @@ class FlexibleDictionary(Generic[_KT, VT]):
         Returns:
             Corresponding value from the internal data.
         """
-        return self._data[key]
+        if '_data' not in self.__dict__:
+            raise AttributeError(
+                f"'{self._class_name}' object has no attribute '{key}' (data not initialized)")
+        try:
+            return self.__dict__['_data'][key]
+        except KeyError as e:
+            raise AttributeError(
+                f"'{self._class_name}' object has no attribute '{key}'"
+            ) from e
 
     def __setitem__(self, key, value):
         """
@@ -141,6 +149,9 @@ class FlexibleDictionary(Generic[_KT, VT]):
             key: Key to assign to.
             value: Value to store.
         """
+        if '_data' not in self.__dict__:
+            raise AttributeError(
+                f"'{self._class_name}' object has no attribute '{key}' (data not initialized)")
         self._data[key] = self._wrap(value)
 
     def __delitem__(self, key):

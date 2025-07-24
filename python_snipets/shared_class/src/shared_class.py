@@ -25,13 +25,20 @@ except ImportError:
         raise RuntimeError("Failed to import FlexibleDictionary.") from e
 
 
+class _SIReferenceHandle:
+    """Dummy object used to track live references to SharedInstance."""
+
+    def __del__(self) -> None:
+        print("Handle collected")
+
+
 class SharedInstance(FD):
     """
         Class in charge of managing instances throughout the runtime of the program.
     """
     _lock: threading.Lock = threading.Lock()
     _instance: Union['SharedInstance', None] = None
-    _shared_instances: int = 0
+    _live_references: weakref.WeakSet = weakref.WeakSet()
     _initialised_loggers: weakref.WeakSet[Disp] = weakref.WeakSet()
     debug: bool = False
     error: int = 1
@@ -52,23 +59,33 @@ class SharedInstance(FD):
         """
         with cls._lock:
             if cls._instance is None:
+                print("cls._instance: None")
                 cls._instance = super().__new__(cls)
-                # super(SharedInstance, cls._instance).__init__()
                 cls._instance.custom_log_levels = MS.CustomLogLevels()
                 cls._instance.initialized_time = datetime.now()
-                cls._instance._shared_instances = 0
-            else:
-                cls._shared_instances += 1
-        return cls._instance
+
+            # Create a handle object to track logical usage
+            handle = _SIReferenceHandle()
+            cls._live_references.add(handle)
+
+            # Attach handle to the instance for GC tracking
+            # instance = cls._instance
+            # object.__setattr__(instance, "_ref_handle", handle)
+
+            # instance = cls._instance
+
+            # # Attach per-access handle to instance, stored in a set to allow multiple
+            # if not hasattr(instance, "_ref_handles"):
+            #     instance._ref_handles = set()
+            # instance._ref_handles.add(handle)
+            return cls._instance
 
     def __del__(self) -> None:
         """
             Function in charge of decrementing the shared instances counter when an instance is lost.
         """
-        with self._lock:
-            self._shared_instances -= 1
-            if self._shared_instances <= 0:
-                self._instance = None
+        print("In del")
+        print("Out of del")
 
     def get_shared_instances(self) -> int:
         """
@@ -79,7 +96,7 @@ class SharedInstance(FD):
             int: The number of active instances
         """
         with self._lock:
-            return self._shared_instances
+            return len(self._live_references)
 
     def initialise_custom_loger(self, class_name: str = __name__) -> Disp:
         """
@@ -112,15 +129,36 @@ class SharedInstance(FD):
 
         self._initialised_loggers.add(node)
 
-        if logger_initialised is False and self.custom_log_levels is not None:
-            item_nodes: Dict[str, Any] = self.custom_log_levels.level_details
-            for key, value in item_nodes.items():
-                node.add_custom_level(
-                    level=value[self.custom_log_levels.level_key],
-                    name=value[self.custom_log_levels.name_key],
-                    colour_text=value[self.custom_log_levels.foreground_colour_key],
-                    colour_bg=value[self.custom_log_levels.background_colour_key]
-                )
+        # Set the custom logging levels if any
+        if self.custom_log_levels is not None:
+            # If the logger has not been initialised, create the levels from scratch
+            if logger_initialised is False:
+                item_nodes: Dict[
+                    str, Any
+                ] = self.custom_log_levels.level_details
+                for key, value in item_nodes.items():
+                    node.add_custom_level(
+                        level=value[self.custom_log_levels.level_key],
+                        name=value[self.custom_log_levels.name_key],
+                        colour_text=value[self.custom_log_levels.foreground_colour_key],
+                        colour_bg=value[self.custom_log_levels.background_colour_key]
+                    )
+            # If there is at least one logger that has been initialised, just set the colours (because they most likely did not persist)
+            else:
+                item_nodes: Dict[
+                    str, Any
+                ] = self.custom_log_levels.level_details
+                for key, value in item_nodes.items():
+                    node.update_logging_colour_background(
+                        colour=value[self.custom_log_levels.background_colour_key],
+                        level_name=value[self.custom_log_levels.level_key],
+                        logger_instance=node.logger
+                    )
+                    node.update_logging_colour_text(
+                        colour=value[self.custom_log_levels.foreground_colour_key],
+                        level_name=value[self.custom_log_levels.level_key],
+                        logger_instance=node.logger
+                    )
 
         return node
 
