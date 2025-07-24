@@ -6,10 +6,10 @@
 from time import sleep
 
 try:
-    from .shared_class import SharedInstance
+    from .shared_class import SharedInstance, FD
 except ImportError:
     try:
-        from shared_class import SharedInstance
+        from shared_class import SharedInstance, FD
     except ImportError as e:
         raise RuntimeError(
             "SharedInstance class not found. Aborting execution."
@@ -17,11 +17,18 @@ except ImportError:
 
 if __name__ == "__main__":
     import gc
+    FDI = FD()
+    FDI["e"] = "e"
+    print(f"FlexiDict: {FDI}")
     SI = SharedInstance()
     print(f"SI content: {dir(SI)}")
     SI2 = SharedInstance()
     print(f"SI2 content: {dir(SI2)}")
+    SI3 = SharedInstance()
+    print(f"SI3 content: {dir(SI3)}")
     print(f"SI is SI2: {SI is SI2}")
+    print(f"SI is SI3: {SI is SI3}")
+    print(f"SI2 is SI3: {SI2 is SI3}")
     print(f"shared instances: {SI.get_shared_instances()}")
     print("Removing SI2")
     del SI2
@@ -42,3 +49,12 @@ if __name__ == "__main__":
             SI.custom_log_levels.log_success,
             "Success string"
         )
+    print("Testing the proxy")
+    print("Point setting SI.a")
+    SI.a = "a"
+    print("Creating a new instance")
+    SI4 = SharedInstance()
+    print(f"SI4 content: {dir(SI4)}")
+    print(f"SI is SI4: {SI is SI4}")
+    print(f"SI.a: {SI.a}, SI3.a: {SI3.a}, SI4.a: {SI4.a}")
+    print(f"SI: {SI}, SI3: {SI3}, SI4: {SI4}")

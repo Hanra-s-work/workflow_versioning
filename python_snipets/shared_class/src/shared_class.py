@@ -2,6 +2,7 @@
     File in charge of containing the code that will store pointer references to initialise elements that need to be accessed by different elements in the program.
 """
 
+import copy
 import weakref
 import threading
 from typing import Type, Union, Dict, Any
@@ -32,6 +33,148 @@ class _SIReferenceHandle:
         print("Handle collected")
 
 
+class _SharedInstanceProxy:
+    """
+    A proxy class that delegates attribute access, modification, and deletion to a wrapped instance.
+    This allows for controlled access to a shared instance, potentially with additional handle-based logic.
+
+    Args:
+        instance (object): The object instance to proxy.
+        handle (Any): An optional handle or identifier associated with the proxy.
+
+    Methods:
+        __getattr__(item): Delegates attribute access to the wrapped instance.
+        __setattr__(key, value): Delegates attribute assignment to the wrapped instance.
+        __delattr__(item): Delegates attribute deletion to the wrapped instance.
+        __dir__(): Returns the list of attributes of the wrapped instance.
+        __repr__(): Returns the string representation of the wrapped instance.
+        __str__(): Returns the informal string representation of the wrapped instance.
+        __eq__(other): Compares the wrapped instance with another object or proxy.
+        __hash__(): Returns the hash of the wrapped instance.
+    """
+
+    def __init__(self, instance, handle):
+        """
+        Initialize the proxy with the given instance and handle.
+
+        Args:
+            instance (object): The object to be proxied.
+            handle (Any): An optional handle or identifier.
+        """
+        self.__dict__['_instance'] = instance
+        self.__dict__['_handle'] = handle
+
+    def __getattr__(self, item):
+        """
+        Delegate attribute access to the wrapped instance.
+
+        Args:
+            item (str): The attribute name.
+
+        Returns:
+            Any: The value of the requested attribute.
+        """
+        inst = object.__getattribute__(self, "_instance")
+        return getattr(inst, item)
+
+    def __setattr__(self, key, value):
+        """
+        Delegate attribute assignment to the wrapped instance.
+
+        Args:
+            key (str): The attribute name.
+            value (Any): The value to assign.
+        """
+        inst = object.__getattribute__(self, "_instance")
+        return setattr(inst, key, value)
+
+    def __delattr__(self, item):
+        """
+        Delegate attribute deletion to the wrapped instance.
+
+        Args:
+            item (str): The attribute name to delete.
+        """
+        inst = object.__getattribute__(self, "_instance")
+        return delattr(inst, item)
+
+    def __dir__(self):
+        """
+        Return the list of attributes of the wrapped instance.
+
+        Returns:
+            list: List of attribute names.
+        """
+        inst = object.__getattribute__(self, "_instance")
+        return sorted(set(dir(inst)) - {"_instance", "_handle"})
+
+    def __repr__(self):
+        """
+        Return the string representation of the wrapped instance.
+
+        Returns:
+            str: The string representation.
+        """
+        inst = object.__getattribute__(self, "_instance")
+        # tried the direct call, the semi direct call
+        return repr(inst)
+
+    def __str__(self):
+        """
+        Return the informal string representation of the wrapped instance.
+
+        Returns:
+            str: The informal string representation.
+        """
+        inst = object.__getattribute__(self, "_instance")
+        # tried the direct call, the semi-direct call
+        return str(inst)
+
+    def __eq__(self, other):
+        """
+        Compare the wrapped instance with another object or proxy.
+
+        Args:
+            other (object): The object to compare with.
+
+        Returns:
+            bool: True if equal, False otherwise.
+        """
+        inst = object.__getattribute__(self, "_instance")
+        if isinstance(other, _SharedInstanceProxy):
+            return inst is object.__getattribute__(other, "_instance")
+        return inst == other
+
+    def __hash__(self):
+        """
+        Return the hash of the wrapped instance.
+
+        Returns:
+            int: The hash value.
+        """
+        inst = object.__getattribute__(self, "_instance")
+        return hash(inst)
+
+    def __copy__(self):
+        inst = object.__getattribute__(self, "_instance")
+        return inst
+
+    def __deepcopy__(self, memo):
+        inst = object.__getattribute__(self, "_instance")
+        return copy.deepcopy(inst, memo)
+
+    def __getstate__(self):
+        inst = object.__getattribute__(self, "_instance")
+        return inst.__getstate__() if hasattr(inst, "__getstate__") else inst.__dict__
+
+    def __setstate__(self, state):
+        inst = object.__getattribute__(self, "_instance")
+        if hasattr(inst, "__setstate__"):
+            inst.__setstate__(state)
+        else:
+            inst.__dict__.update(state)
+
+
 class SharedInstance(FD):
     """
         Class in charge of managing instances throughout the runtime of the program.
@@ -46,7 +189,7 @@ class SharedInstance(FD):
     initialized_time: Union[datetime, None] = None
     custom_log_levels: Union[MS.CustomLogLevels, None] = None
 
-    def __new__(cls: Type['SharedInstance']) -> 'SharedInstance':
+    def __new__(cls: Type['SharedInstance']) -> '_SharedInstanceProxy':
         """
             Function in charge of creating a global instance class that will contain shared elements.
             This function makes this class initialisation threadsafe.
@@ -67,18 +210,7 @@ class SharedInstance(FD):
             # Create a handle object to track logical usage
             handle = _SIReferenceHandle()
             cls._live_references.add(handle)
-
-            # Attach handle to the instance for GC tracking
-            # instance = cls._instance
-            # object.__setattr__(instance, "_ref_handle", handle)
-
-            # instance = cls._instance
-
-            # # Attach per-access handle to instance, stored in a set to allow multiple
-            # if not hasattr(instance, "_ref_handles"):
-            #     instance._ref_handles = set()
-            # instance._ref_handles.add(handle)
-            return cls._instance
+            return _SharedInstanceProxy(cls._instance, handle)
 
     def __del__(self) -> None:
         """
