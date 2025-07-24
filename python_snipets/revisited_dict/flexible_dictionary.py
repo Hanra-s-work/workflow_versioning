@@ -353,7 +353,10 @@ class FlexibleDictionary(Generic[_KT, VT]):
             if isinstance(val, FlexibleDictionary):
                 return val.to_dict()
             return val
-        return {k: unwrap(v) for k, v in self._data.items()}
+        _data = self.__dict__.get('_data', None)
+        if _data is None:
+            return {}  # Or raise or handle as appropriate
+        return {k: unwrap(v) for k, v in _data.items()}
 
     def copy(self) -> "FlexibleDictionary":
         """

@@ -165,9 +165,9 @@ if __name__ == "__main__":
     print(f"str(ExampleHeritage): {str(EHI)}")
     # json.dumps
     print("Testing the json output")
-    fi_dumped_data = json.dumps(FI)
+    fi_dumped_data = json.dumps(FI, cls=FI.FlexibleJSONEncoder)
     print(f"Parent FlexibleDictionary json dumped data: {fi_dumped_data}")
-    ehi_dumped_data = json.dumps(EHI)
+    ehi_dumped_data = json.dumps(EHI, cls=FI.FlexibleJSONEncoder)
     print(f"Parent ExampleHeritage json dumped data: {ehi_dumped_data}")
     # keys
     print("Testing the keys function:")
