@@ -1,0 +1,181 @@
+name: multi-version publish
+
+# version: 1.0.0 # Initial version of the flow
+
+on:
+  workflow_dispatch: # run manually
+  push:
+    tags:
+      - "v*.*.*" # publish when you tag a release
+      - "!v*.*.*-doc"
+
+permissions:
+  contents: write
+
+env:
+  WORKING_DIRECTORY: "example-extension"
+  LATEST_VERSION: "1.104.0"
+
+defaults:
+  run:
+    working-directory: "example-extension"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        vscode_version: ["1.90.0", "1.100.0", "1.104.0"]
+    steps:
+      - uses: actions/checkout@v5.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5.0.0
+        with:
+          node-version: 24
+
+      - name: Set package.json version from tag (strict 3 or 4 numeric parts)
+        id: set-package-version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # Extract raw tag (e.g. refs/tags/v1.2.3 -> v1.2.3)
+          raw_tag="${GITHUB_REF##refs/tags/}"
+          echo "Raw tag: $raw_tag"
+
+          # Remove optional leading 'v' or 'V'
+          tag="${raw_tag#v}"
+          tag="${tag#V}"
+          echo "Normalized tag: $tag"
+
+          # Validate: exactly 3 or 4 numeric components separated by dots
+          if [[ ! "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::Tag '$raw_tag' does NOT match required format 'X.Y.Z' or 'X.Y.Z.W' (numbers only)."
+            echo "::error::Examples: v1.2.3  or  v1.2.3.4"
+            exit 1
+          fi
+
+          # Export validated tag for use by later steps in this job
+          echo "TAG_VERSION=$tag" >> $GITHUB_OUTPUT
+          echo "TAG_VERSION=$tag" >> $GITHUB_ENV
+          echo "Using TAG_VERSION=$tag"
+
+      - name: Applying the determined tag to the file
+        run: |
+          # Update package.json.version
+          node <<'EOF'
+          const fs = require('fs');
+          const pkgPath = 'package.json';
+          if (!fs.existsSync(pkgPath)) {
+            console.error('package.json not found in the current working directory.');
+            process.exit(1);
+          }
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+          const tagVersion = "${{steps.set-package-version.outputs.TAG_VERSION}}";
+          pkg.version = tagVersion;
+          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+          console.log('Updated package.json.version ->', tagVersion);
+          EOF
+
+      - name: Adjust package.json for matrix target
+        run: |
+          node <<'EOF'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const current = "1.104.0"; // real minimum requirement
+          const target = process.env.VSCODE_VERSION;
+
+          // Force engines.vscode
+          pkg.engines.vscode = `^${target}`;
+
+          // Map VS Code versions to available @types/vscode
+          function mapTypesVersion(vscodeVersion) {
+            const [major, minor] = vscodeVersion.split('.').map(Number);
+
+            // Oldest available types are ~1.26.0
+            if (major === 1 && minor < 26) {
+              return "1.26.0";
+            }
+            return vscodeVersion;
+          }
+
+          if (!pkg.devDependencies) pkg.devDependencies = {};
+          pkg.devDependencies["@types/vscode"] = mapTypesVersion(target);
+
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+
+          // Add README warning if below current
+          if (target < current) {
+            let readme = fs.readFileSync('README.md', 'utf8');
+            const warning = `\n> ⚠️ **Compatibility Notice:** This build targets VS Code < ${current}. It is not tested and may break. Provided only for backward compatibility.\n`;
+            if (!readme.includes("⚠️ **Compatibility Notice:**")) {
+              readme = warning + readme;
+              fs.writeFileSync('README.md', readme);
+            }
+          }
+          EOF
+        env:
+          VSCODE_VERSION: ${{ matrix.vscode_version }}
+
+      - name: Strip CI-only dependencies
+        run: |
+          node <<'EOF'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+
+          function stripDeps(section) {
+            if (pkg[section]) {
+              delete pkg[section].vsce;
+              delete pkg[section].ovsx;
+            }
+          }
+
+          stripDeps('devDependencies');
+          stripDeps('dependencies');
+
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+          EOF
+
+      - name: Install deps
+        run: npm install
+
+      - name: Build extension
+        run: npm run compile --if-present
+
+      - name: Installing required package managers
+        run: npm install -g @vscode/vsce ovsx
+
+      - name: Package extension
+        run: npx vsce package -o asperheader-${{ matrix.vscode_version }}-${{ steps.set-package-version.outputs.TAG_VERSION }}.vsix
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: vsix-${{ matrix.vscode_version }}
+          path: "${{env.WORKING_DIRECTORY}}/*.vsix"
+
+      - name: Publish to Marketplace
+        if: ${{ secrets.VSCE_TOKEN != '' && matrix.vscode_version == env.LATEST_VERSION }}
+        run: npx vsce publish -p ${{ secrets.VSCE_TOKEN }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+
+      - name: Publish to Open VSX
+        if: ${{ secrets.OVSX_TOKEN != '' && matrix.vscode_version == env.LATEST_VERSION }}
+        run: npx ovsx publish -p ${{ secrets.OVSX_TOKEN }}
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_TOKEN }}
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5.0.0
+        with:
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.3.3
+        with:
+          files: dist/**/*.vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
