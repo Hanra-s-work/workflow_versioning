@@ -1,15 +1,22 @@
 name: doxygen_generator
 
 # version: 1.0.0
+#          1.0.1 # Removed the need of secrets for the user e-mail and name.
+#          1.0.2 # Change the tag to only trigger when a -doc is appended to it.
+#          1.0.3 # Update the way the tag is processed in the flow.
+#          1.0.4 # The page is now published from the main branch regardless of the branch having triggered the flow.
+#          1.0.5 # The flow will only run specific parts of itself depending on the trigger method.
+#          1.0.6 # The flow will trigger the push method after the initial trigger if it had been triggered by a tag.
+#          1.0.7 # The flow does not need to trigger the push method due to how tags work.
 
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*.*.*-doc"
     branches:
-      - doxygen_generation
+      - main
+      - dev-workflow-doxygen
   workflow_dispatch:
-
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
@@ -21,42 +28,27 @@ permissions:
 env:
   # Variables for managing required containers
   DOCKER_NAME: hanralatalliard/doxygen
-  CODING_STYLE_CONTAINER: ghcr.io/epitech/coding-style-checker:latest
-  # Variables for managin the tags
-  SETUP_FILE: setup.py
-  TAG_FILE: version.txt
-  IS_RELEASE: is_release.txt
-  LATEST_TAG: ""
   # variables managing name publishing
   COMMIT_TITLE: "There is no title"
   COMMIT_MESSAGE: "There is no message"
   #Variables for the extras scripts
-  DOXYFILE: bonus/doxygen_docker/Doxyfile
-  MAN_INSTALL_PATH: bonus/doxygen_docker/man/installer.sh
-  HTML_SERVER_SPAWNER_PATH: bonus/doxygen_docker/html/launch_server.sh
-  # Variables for managing ntfy notification system
-  NOTIFY_CHANNEL: ntfy.sh/is_up #${{ secrets.NOTIFY_ZAPPY }}
-  NOTIFY_LOCATION: ${GITHUB_REPOSITORY}:${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+  DOXYFILE: doxygen_generation/Doxyfile
+  MAN_INSTALL_PATH: doxygen_generation/man/installer.sh
+  HTML_SRC_PATH: doxygen_generation/html
+  HTML_SERVER_SPAWNER_NAME: launch_server.sh
+  HTML_ICON_PATH: doxygen_generation/favicon/
   # Variables for specifying build locations
   HTML_GENERATION: html
   TEMPORARY_FOLDER: tmp_documentation
   OUTPUT_GENERATION: documentation
-  # Variables for specifying the outputs to be cached/published
-  LINUX_BINARY_FOLDER: "./linux_binaries"
-  MAC_MONE_BINARY_FOLDER: "./mac_mone_binaries"
-  MAC_INTEL_BINARY_FOLDER: "./mac_intel_binaries"
+  # Variables for managin the tags
+  SETUP_FILE: setup.py
+  TAG_FILE: version.txt
+  IS_RELEASE: is_release.txt
+  LATEST_TAG: "${{ github.ref_name }}"
   # Variable containing the reference key for the cache of each main section
   CACHE_KEY: doxygen-cache-key
   CACHE_KEY_CLEANED: doxygen-cache-key-cleaned
-  LINUX_CACHE_KEY_BUILD: linux-cache-key
-  MAC_MONE_CACHE_KEY_BUILD: mac-mone-cache-key
-  MAC_INTEL_CACHE_KEY_BUILD: mac-intel-cache-key
-  # Variables containing a more friendly name concerning their role and the destination architectures
-  EXECUTABLES: "./zappy_ai ./zappy_gui ./zappy_server"
-  EXECUTABLES_LINUX: "./zappy_linux_ai ./zappy_linux_gui ./zappy_linux_server"
-  EXECUTABLES_MAC_INTEL: "./zappy_mac_intel_ai ./zappy_mac_intel_gui ./zappy_mac_intel_server"
-  EXECUTABLES_MAC_MONE: "./zappy_mac_apple_chip_ai ./zappy_mac_apple_chip_gui ./zappy_mac_apple_chip_server"
-
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -66,62 +58,19 @@ concurrency:
 
 # The jobs in charge of building everything
 jobs:
-  check_coding_style:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - name: Getting the latest version of (coding-style) ${{env.CODING_STYLE_CONTAINER}}
-      run: docker pull ${{env.CODING_STYLE_CONTAINER}}
-    - name: Run ${{env.CODING_STYLE_CONTAINER}}
-      run: |
-        CODING_STYLE=coding_style_data
-        mkdir -p $CODING_STYLE
-        docker run --rm -i -v "$(pwd)/src/server":/mnt/delivery -v "$(pwd)/$CODING_STYLE":/mnt/reports $CODING_STYLE_CONTAINER "/mnt/delivery" "/mnt/reports"
-    - name: Checking the results
-      run: |
-        CONTENT="$(cat coding_style_data/coding-style-reports.log)"
-        ILLEGAL_FILES_FOUND=0
-        if [ "$CONTENT" == "" ]; then
-            echo "No errors were found"
-            exit 0
-        fi
-        while IFS= read -r LINE; do
-            FILE=$(echo $LINE | cut -d ':' -f 1)
-            LINE_NUMBER=$(echo $LINE | cut -d ':' -f 2)
-            LEVEL=$(echo $LINE | cut -d ':' -f 3 | cut -d ' ' -f 2)
-            ERROR_CODE=$(echo $LINE | cut -d ':' -f 4)
-            echo "::error file=$FILE,line=$LINE_NUMBER,endLine=0,title=$LEVEL coding style error::$ERROR_CODE"
-            ILLEGAL_FILES_FOUND=1
-        done <<<"$CONTENT"
-        if [ $ILLEGAL_FILES_FOUND -eq 1 ]; then
-            curl -H "Title: Coding style errors" -H "Priority: default" -H 'Tags: warning' -d "The coding style reported errors for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-        else
-            exit 0
-        fi
-
   build_doxygen:
     runs-on: ubuntu-latest
-    needs: check_coding_style
-    if: success()
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Build doxygen docker
+      - name: Fetch doxygen docker
         run: |
           docker pull ${{env.DOCKER_NAME}}
       - name: Create required folders
         run: |
-          mkdir -p ${{env.OUTPUT_GENERATION}} ${{env.OUTPUT_GENERATION}}/${{env.HTML_GENERATION}}
-      - name: Clean repository
-        run: |
-          make fclean
-          cd ./src/ai/
-          make fclean_env
+          mkdir -p ${{ env.OUTPUT_GENERATION }}/${{ env.HTML_GENERATION }}
       - name: Create dummy page for html renders
         run: |
           HTML_CONTENT='<!DOCTYPE html><html lang="en"><head>'
@@ -147,43 +96,36 @@ jobs:
           echo -e "$HTML_CONTENT" > ${{env.OUTPUT_GENERATION}}/${{env.HTML_GENERATION}}/index.html
       - name: Run doxygen docker
         run: |
-          RUN_COMMAND="cd /app && cp ${{env.DOXYFILE}} ./Doxyfile && doxygen ; exit $?"
-          docker run -i -v "$(pwd)":"/app" -v "$(pwd)/${{env.OUTPUT_GENERATION}}":"/${{env.OUTPUT_GENERATION}}" ${{env.DOCKER_NAME}} /bin/bash -c "$RUN_COMMAND"
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Build failed" -H "Priority: default" -H 'Tags: warning' -d "The documentation generation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
+          RUN_COMMAND="cd /app && cp -v ${{ env.DOXYFILE }} ./Doxyfile && doxygen ; exit $?"
+          docker run -t -v "$(pwd)":"/app" -v "$(pwd)/${{ env.OUTPUT_GENERATION }}":"/${{ env.OUTPUT_GENERATION }}" ${{ env.DOCKER_NAME }} /bin/bash -c "$RUN_COMMAND"
       - name: Reclaim ownership
         run: |
           echo "Owning the generated content (replacing root by the current user account)"
-          sudo chown $USER:$USER -Rv ${{env.OUTPUT_GENERATION}}
+          sudo chown -Rv $USER:$USER ${{ env.OUTPUT_GENERATION }}
           echo "Granting all users read-write rights on the files"
-          chmod a+rw -Rv ${{env.OUTPUT_GENERATION}}
+          chmod -Rv a+rw ${{ env.OUTPUT_GENERATION }}
+
       - name: Display generated content
         run: |
-          ls -a
           echo "Displaying the content of: ${{env.OUTPUT_GENERATION}}"
-          ls -a ${{env.OUTPUT_GENERATION}}
+          ls -a ${{ env.OUTPUT_GENERATION }}
           echo "Displaying the content of: ${{env.OUTPUT_GENERATION}}/${{env.HTML_GENERATION}}"
-          ls -a ${{env.OUTPUT_GENERATION}}/${{env.HTML_GENERATION}}
+          ls -a ${{ env.OUTPUT_GENERATION }}/${{ env.HTML_GENERATION }}
       - name: Save cache
         id: cache-save
         uses: actions/cache@v4
         with:
-          key: ${{env.CACHE_KEY}}
-          path: ${{env.OUTPUT_GENERATION}}
+          key: ${{ env.CACHE_KEY }}
+          path: ${{ env.OUTPUT_GENERATION }}
           enableCrossOsArchive: true
 
   clean_up_generation:
     runs-on: ubuntu-latest
     needs: build_doxygen
     if: success()
-    env:
-      ICON_PATH: bonus/doxygen_docker/favicon/
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Get generated documentation
@@ -191,28 +133,31 @@ jobs:
         uses: actions/cache@v4
         with:
           key: ${{ env.CACHE_KEY }}
-          enableCrossOsArchive: true
           path: ${{ env.OUTPUT_GENERATION }}
+          enableCrossOsArchive: true
           restore-keys: |
             doxygen-cache-key
             cache-key-doxygen
             doxygen_cache_key
             cache_key_doxygen
+
       - name: Making temporary folder permanent
         run: |
           echo "Content at './'"  
           ls -a ./
           echo "Copying content of ${{ env.OUTPUT_GENERATION }} to ${{env.TEMPORARY_FOLDER}}"
           mkdir -p ${{ env.TEMPORARY_FOLDER}}
-          cp -rf ${{ env.OUTPUT_GENERATION }} ${{env.TEMPORARY_FOLDER}}
+          cp -rvf ${{ env.OUTPUT_GENERATION }} ${{env.TEMPORARY_FOLDER}}
           echo "Content of: ${{ env.TEMPORARY_FOLDER }}/"
           ls -a ${{ env.TEMPORARY_FOLDER }}/
           echo "Content of: ${{ env.OUTPUT_GENERATION }}/"
           ls -a ${{ env.OUTPUT_GENERATION }}/
+
       - name: Listing content of temporary folder
         run: |
           echo "Contents of ${{env.TEMPORARY_FOLDER}}"
           ls -a ${{env.TEMPORARY_FOLDER}}
+
       - name: Copy the icons to the generated documentation
         run: |
           echo "Content of temporary folder: ${{ env.TEMPORARY_FOLDER }}"
@@ -231,9 +176,10 @@ jobs:
             FINAL_PATH="$i/files/icon"
             echo "Final path = $FINAL_PATH"
             mkdir -p "$FINAL_PATH"
-            cp -r ${{env.ICON_PATH}}/* "$FINAL_PATH"
+            cp -rv ${{env.HTML_ICON_PATH}}/* "$FINAL_PATH"
             ls -a -ls --color=auto "$FINAL_PATH"
           done
+
       - name: Generate latex if present
         run: |
           if [ -e "${{env.TEMPORARY_FOLDER}}/${{ env.OUTPUT_GENERATION }}/latex" ]; then
@@ -248,44 +194,90 @@ jobs:
             else
               echo "No Makefile found, not generating anything"
             fi
-            cd $CWDxs
+            cd $CWD
           else
             echo "No latex folder found, not generating anything"
           fi
+
       - name: Inject install file if man is present
         run: |
           if [ -e "${{env.TEMPORARY_FOLDER}}/${{ env.OUTPUT_GENERATION }}/man" ]; then
             CWD=$(pwd)
             FILE_NAME="install_man.sh"
             cd "${{env.TEMPORARY_FOLDER}}/${{ env.OUTPUT_GENERATION }}/man"
-            cp $CWD/${{env.MAN_INSTALL_PATH}} ./$FILE_NAME
+            cp -v $CWD/${{env.MAN_INSTALL_PATH}} ./$FILE_NAME
             chmod a+x $FILE_NAME
             cd $CWD
           else
             echo "There was no man generated"
           fi
-      - name: Inject server spawner file if html is present
+
+      - name: Inject external html ressources if html is present
         run: |
           if [ -e "${{env.TEMPORARY_FOLDER}}/${{ env.OUTPUT_GENERATION }}/html" ]; then
             CWD=$(pwd)
-            FILE_NAME="launch_server.sh"
             cd "${{env.TEMPORARY_FOLDER}}/${{ env.OUTPUT_GENERATION }}/html"
-            cp $CWD/${{env.HTML_SERVER_SPAWNER_PATH}} ./$FILE_NAME
-            chmod a+x $FILE_NAME
+            if [ -e "$CWD/${{env.HTML_SRC_PATH}}/files" ]; then
+              echo "Folder 'files' found, copying"
+              cp -rv $CWD/${{env.HTML_SRC_PATH}}/files .
+              if [ -e "$CWD/${{env.HTML_SRC_PATH}}/files/icon" ]; then
+                echo "Folder 'files/icon' found, copying"
+                cp -rv $CWD/${{env.HTML_SRC_PATH}}/files/icon/* .
+              fi
+              if [ -e "$CWD/${{env.HTML_SRC_PATH}}/files/icons" ]; then
+                echo "Folder 'files/icons' found, copying"
+                cp -rv $CWD/${{env.HTML_SRC_PATH}}/files/icons/* .
+              fi
+              if [ -e "$CWD/${{env.HTML_SRC_PATH}}/files/img" ]; then
+                echo "Folder 'img' found, copying"
+                cp -rv $CWD/${{env.HTML_SRC_PATH}}/files/img/* .
+              fi
+            fi
+            if [ -e "$CWD/${{env.HTML_SRC_PATH}}/css" ]; then
+              echo "Folder 'css' found, copying"
+              cp -rv $CWD/${{env.HTML_SRC_PATH}}/css .
+            fi
+            if [ -e "$CWD/${{env.HTML_SRC_PATH}}/js" ]; then
+              echo "Folder 'js' found, copying"
+              cp -rv $CWD/${{env.HTML_SRC_PATH}}/js .
+            fi
+            if [ -e "$CWD/${{env.HTML_SRC_PATH}}/icon" ]; then
+              echo "Folder 'icon' found, copying"
+              cp -rv $CWD/${{env.HTML_SRC_PATH}}/icon .
+              cp -rv $CWD/${{env.HTML_SRC_PATH}}/icon/* .
+            fi
+            if [ -e "$CWD/${{env.HTML_SRC_PATH}}/icons" ]; then
+              echo "Folder 'icons' found, copying"
+              cp -rv $CWD/${{env.HTML_SRC_PATH}}/icons .
+              cp -rv $CWD/${{env.HTML_SRC_PATH}}/icons/* .
+            fi
+            if [ -e "$CWD/${{env.HTML_SRC_PATH}}/img" ]; then
+              echo "Folder 'img' found, copying"
+              cp -rv $CWD/${{env.HTML_SRC_PATH}}/img .
+              cp -rv $CWD/${{env.HTML_SRC_PATH}}/img/* .
+            fi
+            if [ -e "$CWD/${{env.HTML_SRC_PATH}}/${{env.HTML_SERVER_SPAWNER_NAME}}" ]; then
+              echo "File ${{env.HTML_SERVER_SPAWNER_NAME}} found, copying"
+              cp -v $CWD/${{env.HTML_SRC_PATH}}/${{env.HTML_SERVER_SPAWNER_NAME}} ./${{env.HTML_SERVER_SPAWNER_NAME}}
+              chmod a+x ${{env.HTML_SERVER_SPAWNER_NAME}}
+            fi
+            echo "Content of '$(pwd)':"
+            ls -lsa
+            echo "Returning to '$CWD'"
             cd $CWD
           else
             echo "There was no html generated"
           fi
+
       - name: Save cache
         id: cache-save
         uses: actions/cache@v4
         with:
-          key: ${{env.CACHE_KEY_CLEANED}}
-          path: ${{env.TEMPORARY_FOLDER}}
+          key: ${{ env.CACHE_KEY_CLEANED }}
+          path: ${{ env.TEMPORARY_FOLDER }}
           enableCrossOsArchive: true
 
-
-  publish_html:
+  publish_html: # The critical steps will only be run if the flow was triggered by a push on the main branch
     # environment variables that are for the github pages
     environment:
       name: github-pages
@@ -293,15 +285,17 @@ jobs:
     # The system on which we are running the actions
     runs-on: ubuntu-latest
     needs: clean_up_generation
-    if: success()
+    if: success() && github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Get generated documentation
         id: html-cache-restore
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
         uses: actions/cache@v4
         with:
           key: ${{ env.CACHE_KEY_CLEANED }}
@@ -316,432 +310,30 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Show restored content
+        run: |
+          echo "Displaying content of ${{env.OUTPUT_GENERATION}}:"
+          ls -aR ${{env.OUTPUT_GENERATION}}
+
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           # Upload selected content
-          path: ${{env.OUTPUT_GENERATION}}/${{env.HTML_GENERATION}}
+          path: ${{ env.OUTPUT_GENERATION }}/${{ env.HTML_GENERATION }}
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
-  build_project_linux:
+  export_other_formats_when_present: # The critical steps will only be run if the flow was triggered by a tag.
     runs-on: ubuntu-latest
-    needs: check_coding_style
+    needs: clean_up_generation
     if: success()
     env:
-      LINUX_BINARIES_FILE_STORER: "cache_paths.txt"
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Pull Docker image
-        run: docker pull epitechcontent/epitest-docker
-      - name: Compile code
-        run: |
-          docker run -v "$(pwd)":"/home/" -i epitechcontent/epitest-docker /bin/bash -c "cd /home && make && make clean"
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Build failed" -H "Priority: high" -H 'Tags: warning,skull' -d "The build failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-
-      - name: Rename binaries
-        run: |
-          IFS=' ' read -r -a EXE_ARRAY <<<"${{env.EXECUTABLES}}"
-          IFS=' ' read -r -a LINUX_EXE_ARRAY <<<"${{env.EXECUTABLES_LINUX}}"
-
-          if [ ${#EXE_ARRAY[@]} -ne ${#LINUX_EXE_ARRAY[@]} ]; then
-              echo "::error ::Mismatch between the number of executables in EXECUTABLES and EXECUTABLES_LINUX"
-              exit 1
-          fi
-
-          BIN_FOLD=${{env.LINUX_BINARY_FOLDER}}
-          mkdir -p $BIN_FOLD
-
-          for i in "${!EXE_ARRAY[@]}"; do
-              EXE="${EXE_ARRAY[$i]}"
-              LEXE="${LINUX_EXE_ARRAY[$i]}"
-
-              if [ ! -e "$EXE" ]; then
-                  echo "::error file=$EXE,line=1,endLine=0,title='NOT FOUND' ::The file '$EXE' does not exist"
-                  exit 1
-              else
-                  mv $EXE $BIN_FOLD/$LEXE
-                  echo "$BIN_FOLD/$LEXE" >> ${{env.LINUX_BINARIES_FILE_STORER}}
-              fi
-          done
-      
-      - name: listing created binaries
-        run: |
-          ls -a
-          echo "Contents of : ${{env.LINUX_BINARY_FOLDER}}"
-          ls -a ${{env.LINUX_BINARY_FOLDER}}
-
-      - name: Save cache
-        id: cache-save
-        uses: actions/cache@v4
-        with:
-          key: ${{env.LINUX_CACHE_KEY_BUILD}}
-          enableCrossOsArchive: true
-          path: ${{env.LINUX_BINARY_FOLDER}}
-  
-  build_project_mac_apple_chip:
-    runs-on: macos-latest
-    needs: check_coding_style
-    if: success()
-    env:
-      MAC_MONE_BINARIES_FILE_STORER: "cache_paths.txt"
-      MAC_BINARY_FOLDER: mac_bin
-      MAC_PYTHON_VERSION: 3.11
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install Xcode Command Line Tools (for c and cpp)
-        run: |
-          xcode-select --print-path
-          if [ $? -eq 0 ]; then
-            echo "Command line tools are already installed."
-          else
-            # Install command line tools
-            xcode-select --install
-            if [ $? -ne 0 ]; then
-              curl -H "Title: xcode installation failed" -H "Priority: default" -H 'Tags: warning,apple,arrow_down_small' -d "The xcode installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-      - name: Install SFML (the old way)
-        run: |
-          SFML_FOLDER="my_sfml.tar.gz"
-          SFML_DESTINATION="$(pwd)/extracted_sfml"
-          curl -L https://www.sfml-dev.org/files/SFML-2.1-osx-gcc-universal.tar.gz -o $SFML_FOLDER
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: SFML installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The sfml installation failed for ${{env.NOTIFY_LOCATION}}: Failed to download the SFML archive" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-          ls
-          mkdir -p $SFML_DESTINATION
-          tar -xvf "$SFML_FOLDER" -C "$SFML_DESTINATION"
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: SFML installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The sfml installation failed for ${{env.NOTIFY_LOCATION}}: Failed to extract the SFML archivexs" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-          cd $SFML_DESTINATION
-          cd *
-          sudo ./install.sh
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: SFML installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The sfml installation failed for ${{env.NOTIFY_LOCATION}}: Failed to run the install.sh script" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-      - name: Install CSFML via Homebrew
-        run: |
-          if brew ls --versions csfml > /dev/null; then
-            echo "csfml is installed"
-          else
-            DEPENDENCIES="csfml"
-            echo "csfml is not installed"
-            brew install $DEPENDENCIES
-            if [ $? -ne 0 ]
-            then
-              curl -H "Title: $DEPENDENCIES installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The $DEPENDENDCIES installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-          if brew ls --versions openal-soft > /dev/null; then
-            echo "openal-soft is installed"
-          else
-            DEPENDENCIES="openal-soft"
-            echo "openal-soft is not installed"
-            brew install $DEPENDENCIES
-            if [ $? -ne 0 ]
-            then
-              curl -H "Title: $DEPENDENCIES installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The $DEPENDENDCIES installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-          if brew ls --versions pkg-config > /dev/null; then
-            echo "pkg-config is installed"
-          else
-            DEPENDENCIES="pkg-config"
-            echo "pkg-config is not installed"
-            brew install $DEPENDENCIES
-            if [ $? -ne 0 ]
-            then
-              curl -H "Title: $DEPENDENCIES installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The $DEPENDENDCIES installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-          if brew ls --versions cmake > /dev/null; then
-            echo "cmake is installed"
-          else
-            DEPENDENCIES="cmake --cask"
-            echo "cmake is not installed"
-            brew install $DEPENDENCIES
-            if [ $? -ne 0 ]
-            then
-              curl -H "Title: $DEPENDENCIES installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The $DEPENDENDCIES installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-      - name: Update paths for dependecy builds
-        run: |
-          echo 'export PATH="/opt/homebrew/opt/openal-soft/bin:$PATH"' >> /Users/runner/.bash_profile
-          export LDFLAGS="-L/opt/homebrew/opt/openal-soft/lib"
-          export CPPFLAGS="-I/opt/homebrew/opt/openal-soft/include"
-          export PKG_CONFIG_PATH="/opt/homebrew/opt/openal-soft/lib/pkgconfig"
-      - name: Install python ${{env.MAC_PYTHON_VERSION}}
-        run: |
-          if brew ls --versions python@${{env.MAC_PYTHON_VERSION}} > /dev/null; then
-            echo "python@${{env.MAC_PYTHON_VERSION}} is installed"
-          else
-            DEPENDENCIES="python@${{env.MAC_PYTHON_VERSION}}"
-            echo "python@${{env.MAC_PYTHON_VERSION}} is not installed"
-            brew install $DEPENDENCIES
-            if [ $? -ne 0 ]
-            then
-              curl -H "Title: $DEPENDENCIES installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The $DEPENDENDCIES installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-          if brew ls --versions python-tk@${{env.MAC_PYTHON_VERSION}} > /dev/null; then
-            echo "python-tk@${{env.MAC_PYTHON_VERSION}} is installed"
-          else
-            DEPENDENCIES="python-tk@${{env.MAC_PYTHON_VERSION}}"
-            echo "python-tk@${{env.MAC_PYTHON_VERSION}} is not installed"
-            brew install $DEPENDENCIES
-            if [ $? -ne 0 ]
-            then
-              curl -H "Title: $DEPENDENCIES installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The $DEPENDENDCIES installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-      - name: Re-create the python environement
-        run: |
-          cd src/ai
-          make noisy fclean_env
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Env removal failed" -H "Priority: default" -H 'Tags: warning,apple,snake,wastebasket' -d "The environement removal failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-          make noisy create_environement install_dependencies
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Env removal failed" -H "Priority: default" -H 'Tags: warning,apple,snake,new' -d "The environement creation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-      - name: Delete existing compilation
-        run: |
-          make fclean
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Clean failed" -H "Priority: high" -H 'Tags: warning' -d "The cleaning of existing compilations failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-          
-      - name: Compile code
-        run: |
-          echo "Updating specific variables in the terminal in order to make sure that the compilation goes well"
-          export LDFLAGS="-L/opt/homebrew/opt/openal-soft/lib"
-          export CPPFLAGS="-I/opt/homebrew/opt/openal-soft/include"
-          export PKG_CONFIG_PATH="/opt/homebrew/opt/openal-soft/lib/pkgconfig"
-          echo "Compiling the data"
-          make && make clean
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Build failed" -H "Priority: high" -H 'Tags: warning' -d "The build failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-
-      - name: Rename binaries
-        run: |
-          IFS=' ' read -r -a EXE_ARRAY <<<"${{env.EXECUTABLES}}"
-          IFS=' ' read -r -a MAC_MONE_EXE_ARRAY <<<"${{env.EXECUTABLES_MAC_MONE}}"
-
-          if [ ${#EXE_ARRAY[@]} -ne ${#MAC_MONE_EXE_ARRAY[@]} ]; then
-              echo "::error ::Mismatch between the number of executables in EXECUTABLES and EXECUTABLES_MAC_MONE"
-              exit 1
-          fi
-
-          BIN_FOLD=${{env.MAC_MONE_BINARY_FOLDER}}
-          mkdir -p $BIN_FOLD
-
-          for i in "${!EXE_ARRAY[@]}"; do
-              EXE="${EXE_ARRAY[$i]}"
-              MEXE="${MAC_MONE_EXE_ARRAY[$i]}"
-
-              if [ ! -e "$EXE" ]; then
-                  echo "::error file=$EXE,line=1,endLine=0,title='NOT FOUND' ::The file '$EXE' does not exist"
-                  exit 1
-              else
-                  mv $EXE $BIN_FOLD/$MEXE
-                  echo "$BIN_FOLD/$MEXE" >> ${{env.MAC_MONE_BINARIES_FILE_STORER}}
-              fi
-          done
-      - name: listing created binaries
-        run: |
-          ls -a
-          echo "Contents of : ${{env.MAC_MONE_BINARY_FOLDER}}"
-          ls -a ${{env.MAC_MONE_BINARY_FOLDER}}
-
-      - name: Save cache
-        id: cache-save
-        uses: actions/cache@v4
-        with:
-          key: ${{env.MAC_MONE_CACHE_KEY_BUILD}}
-          enableCrossOsArchive: true
-          path: ${{env.MAC_MONE_BINARY_FOLDER}}
-
-  build_project_mac_intel_chip:
-    runs-on: macos-12
-    needs: check_coding_style
-    if: success()
-    env:
-      MAC_INTEL_BINARIES_FILE_STORER: "cache_paths.txt"
-      MAC_PYTHON_VERSION: 3.11
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install Xcode Command Line Tools (for c and cpp)
-        run: |
-          xcode-select --print-path
-          if [ $? -eq 0 ]; then
-            echo "Command line tools are already installed."
-          else
-            # Install command line tools
-            xcode-select --install
-            if [ $? -ne 0 ]; then
-              curl -H "Title: xcode installation failed" -H "Priority: default" -H 'Tags: warning,apple,arrow_down_small' -d "The xcode installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-      - name: Install SFML and CSFML via Homebrew
-        run: |
-          brew install sfml csfml
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: SFML and CSFML installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The sfml and csfml installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-      - name: Install python ${{env.MAC_PYTHON_VERSION}}
-        run: |
-          if brew ls --versions python@${{env.MAC_PYTHON_VERSION}} > /dev/null; then
-            echo "python@${{env.MAC_PYTHON_VERSION}} is installed"
-          else
-            DEPENDENCIES="python@${{env.MAC_PYTHON_VERSION}}"
-            echo "python@${{env.MAC_PYTHON_VERSION}} is not installed"
-            brew install $DEPENDENCIES
-            if [ $? -ne 0 ]
-            then
-              curl -H "Title: $DEPENDENCIES installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The $DEPENDENDCIES installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-          if brew ls --versions python-tk@${{env.MAC_PYTHON_VERSION}} > /dev/null; then
-            echo "python-tk@${{env.MAC_PYTHON_VERSION}} is installed"
-          else
-            DEPENDENCIES="python-tk@${{env.MAC_PYTHON_VERSION}}"
-            echo "python-tk@${{env.MAC_PYTHON_VERSION}} is not installed"
-            brew install $DEPENDENCIES
-            if [ $? -ne 0 ]
-            then
-              curl -H "Title: $DEPENDENCIES installation failed" -H "Priority: default" -H 'Tags: warning,apple,beer,desktop_computer,arrow_down_small' -d "The $DEPENDENDCIES installation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-              exit 1
-            fi
-          fi
-      - name: Re-create the python environement
-        run: |
-          cd src/ai
-          make noisy fclean_env
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Env removal failed" -H "Priority: default" -H 'Tags: warning,apple,snake,wastebasket' -d "The environement removal failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-          make noisy create_environement install_dependencies
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Env removal failed" -H "Priority: default" -H 'Tags: warning,apple,snake,new' -d "The environement creation failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-      - name: Delete existing compilation
-        run: |
-          make fclean
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Clean failed" -H "Priority: high" -H 'Tags: warning' -d "The cleaning of existing compilations failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-          
-      - name: Compile code
-        run: |
-          make && make clean
-          if [ $? -ne 0 ]
-          then
-            curl -H "Title: Build failed" -H "Priority: high" -H 'Tags: warning' -d "The build failed for ${{env.NOTIFY_LOCATION}}" ${{env.NOTIFY_CHANNEL}}
-            exit 1
-          fi
-
-      - name: Rename binaries
-        run: |
-          IFS=' ' read -r -a EXE_ARRAY <<<"${{env.EXECUTABLES}}"
-          IFS=' ' read -r -a EXECUTABLES_MAC_INTEL <<<"${{env.EXECUTABLES_MAC_INTEL}}"
-
-          if [ ${#EXE_ARRAY[@]} -ne ${#EXECUTABLES_MAC_INTEL[@]} ]; then
-              echo "::error ::Mismatch between the number of executables in EXECUTABLES and EXECUTABLES_MAC_INTEL"
-              exit 1
-          fi
-
-          BIN_FOLD=${{env.MAC_INTEL_BINARY_FOLDER}}
-          mkdir -p $BIN_FOLD
-
-          for i in "${!EXE_ARRAY[@]}"; do
-              EXE="${EXE_ARRAY[$i]}"
-              MEXE="${EXECUTABLES_MAC_INTEL[$i]}"
-
-              if [ ! -e "$EXE" ]; then
-                  echo "::error file=$EXE,line=1,endLine=0,title='NOT FOUND' ::The file '$EXE' does not exist"
-                  exit 1
-              else
-                  mv $EXE $BIN_FOLD/$MEXE
-                  echo "$BIN_FOLD/$MEXE" >> ${{env.MAC_INTEL_BINARIES_FILE_STORER}}
-              fi
-          done
-      - name: listing created binaries
-        run: |
-          ls -a
-          echo "Contents of : ${{env.MAC_INTEL_BINARY_FOLDER}}"
-          ls -a ${{env.MAC_INTEL_BINARY_FOLDER}}
-
-      - name: Save cache
-        id: cache-save
-        uses: actions/cache@v4
-        with:
-          key: ${{env.MAC_INTEL_CACHE_KEY_BUILD}}
-          enableCrossOsArchive: true
-          path: ${{env.MAC_INTEL_BINARY_FOLDER}}
-
-  export_other_formats_when_present:
-    runs-on: ubuntu-latest
-    needs: [build_project_linux, build_project_mac_apple_chip, build_project_mac_intel_chip, clean_up_generation]
-    if: success()
-    env:
-      MAC_MON_ZIP_NAME: mac_apple_chip.zip
-      MAC_INTEL_ZIP_NAME: mac_intel_chip.zip
-      LINUX_ZIP_NAME: linux.zip
       DOCUMENTATION_ZIP_NAME: documentation.zip
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -750,151 +342,46 @@ jobs:
         uses: actions/cache@v4
         with:
           key: ${{ env.CACHE_KEY_CLEANED }}
-          enableCrossOsArchive: true
           path: ${{ env.TEMPORARY_FOLDER }}
+          enableCrossOsArchive: true
           restore-keys: |
             doxygen-cache-key
             cache-key-doxygen
             doxygen_cache_key
             cache_key_doxygen
-      
-      - name: Get linux binaries
-        id: cache-linux-restore
-        uses: actions/cache@v4
-        with:
-          key: ${{ env.LINUX_CACHE_KEY_BUILD }}
-          enableCrossOsArchive: true
-          path: ${{ env.LINUX_BINARY_FOLDER }}
-          restore-keys: |
-            linux-cache-key
-            cache-key-linux
-            linux_cache_key
-            cache_key_linux
-      
-      - name: Get generated mac apple chip binaries
-        id: cache-mac-apple-chip-restore
-        uses: actions/cache@v4
-        with:
-          key: ${{ env.MAC_MONE_CACHE_KEY_BUILD }}
-          enableCrossOsArchive: true
-          path: ${{ env.MAC_MONE_BINARY_FOLDER }}
-          restore-keys: |
-            mac-mone-cache-key
-            cache-key-mac-mone
-            mac_mone_cache_key
-            cache_key_mac_mone
-            mac-apple-chip-cache-key
-            cache-key-mac-apple-chip
-            mac_apple_chip_cache_key
-            cache_key_mac_apple_chip
-      
-      - name: Get generated mac intel binaries
-        id: cache-mac-intel-restore
-        uses: actions/cache@v4
-        with:
-          key: ${{ env.MAC_INTEL_CACHE_KEY_BUILD }}
-          enableCrossOsArchive: true
-          path: ${{ env.MAC_INTEL_BINARY_FOLDER }}
-          restore-keys: |
-            mac-intel-cache-key
-            cache-key-mac-intel
-            mac_intel_cache_key
-            cache_key_mac_intel
-            mac-intel-chip-cache-key
-            cache-key-mac-intel-chip
-            mac_intel_chip_cache_key
-            cache_key_mac_intel_chip
 
       - name: List directory content
         run: |
           ls -a
 
-      - name: Get Latest Tag
-        id: get_latest_tag
+      - name: determine e-mail
+        id: get-email
         run: |
-          echo "Getting tags"
-          # git fetch --tags # Make sure to fetch the tags first
-          echo "Updated the list"
-          latest_tag=$(git tag --list "v*" | sort -rV | head -n 1)
-          echo "Latest tag = $latest_tag"
-          if [ "$latest_tag" == "" ]; then
-            echo "No tags found matching 'v*'."
-            latest_tag="v1.0.0"
-            echo "Using a default tag: $latest_tag"
-          else
-            echo "Latest Tag: $latest_tag"
+          #Check if it's a push event
+          email="${{ github.event.pusher.email || '' }}"
+          if [ -z "$email" ]; then
+            email="${{ github.event.head_commit.author.email || '' }}"
           fi
-          echo "$latest_tag" > ${{env.TAG_FILE}}
-          echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
-          echo -e "\n\n\n\n\n\n\n\n\n"
-          echo "new_tag = $latest_tag"
-          echo "env.new_tag = ${{env.tag_file}}"
-          echo "cat env.new_tag = $(cat ${{env.TAG_FILE}})"
-          echo "env.LATEST_TAG = ${{env.LATEST_TAG}}"
-          echo -e "\n\n\n\n\n\n\n\n\n"
-
-      - name: Check if Latest Tag is a Release
-        id: is_release
-        run: |
-          latest_tag="$(cat ${{env.TAG_FILE}})"
-          is_release="false"
-          latest_updated_tag=$(git tag --list "v*" | sort -rV | head -n 1)
-          if [[ $latest_updated_tag == $latest_tag ]]; then
-            is_release="true"
+          # Check if it's in a commit
+          if [ -z "$email" ]; then
+            email=$(git log -1 --pretty=format:%ae || true)
           fi
-          echo "$is_release" > ${{env.IS_RELEASE}}
-          echo -e "\n\n\n\n\n\n\n\n\n"
-          echo "Is_release = $is_release"
-          echo "env.Is_release = ${{env.is_release}}"
-          echo "cat env.Is_release = $(cat ${{env.is_release}})"
-          echo -e "\n\n\n\n\n\n\n\n\n"
-
-      - name: Increment Tag Version
-        id: increment_tag
-        run: |
-          is_release="$(cat ${{env.IS_RELEASE}})"
-          latest_tag="$(cat ${{env.TAG_FILE}})"
-          echo "ls = '$(ls)'"
-          echo "is_release = $is_release"
-          echo "latest_tag = $latest_tag"
-          if [[ $is_release == "true" ]]; then
-            # Parse the latest tag and increment the version component you want
-            # Example: Convert "v1.2.3" to "v1.2.4"
-            new_tag="${latest_tag/v/}"  # Remove the leading "v"
-            echo "new_tag = $new_tag"
-            IFS='.' read -ra version <<< "$new_tag"
-            echo "declare -p version = $(declare -p $version)"
-            echo "declare -p version[0] = $(declare -p ${version[0]})"
-            echo "declare -p version[1] = $(declare -p ${version[1]})"
-            echo "declare -p version[2] = $(declare -p ${version[2]})"
-            echo "version[2]+1 = $(expr "${version[2]}" + 1)"
-            echo "version[*] = ${version[*]}"
-            echo "version = ${version}"
-            echo "#version = ${#version}"
-            echo "version[0] = ${version[0]}"
-            echo "version[1] = ${version[1]}"
-            echo "version[2] = ${version[2]}"
-            version[2]=$(expr "${version[2]}" + 1)  # Increment the third version component
-            echo "Version = ${version[*]}"
-            new_tag="v${version[0]}.${version[1]}.${version[2]}"
-            echo "New Tag: $new_tag"
-            echo "$new_tag" > ${{env.TAG_FILE}}
-            echo "NEW_TAG=$new_tag" >> $GITHUB_ENV
-          else
-            echo "Latest tag is not a release. Skipping tag increment."
+          # Last resort, is the e-mail of the actor in the public API?
+          if [ -z "$email" ]; then
+            email=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/users/${{ github.actor }}" \
+              | jq -r '.email')
+            [ "$email" = "null" ] && email=""
           fi
-          echo -e "\n\n\n\n\n\n\n\n\n"
-          echo "new_tag = $new_tag"
-          echo "env.NEW_TAG = ${{env.NEW_TAG}}"
-          echo "env.is_release = $(cat ${{env.IS_RELEASE}})"
-          echo "cat env.new_tag = $(cat ${{env.TAG_FILE}})"
-          echo "cat env.is_release = $(cat ${{env.IS_RELEASE}})"
-          echo -e "\n\n\n\n\n\n\n\n\n"
+          # If all above fail, setting e-mail to null
+          [ -z "$email" ] && email="null"
+          echo "Resolved email: $email"
+          echo "trigger_email=$email" >> $GITHUB_OUTPUT
 
       - name: Update author
         run: |
-          git config --local user.name "${{secrets.USER_NAME_E}}"
-          git config --local user.email "${{secrets.USER_EMAIL_E}}"
+          git config --local user.name "${GITHUB_ACTOR}"
+          git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
       - name: Get tag title
         run: |
@@ -952,38 +439,19 @@ jobs:
           ls -a ${{env.TEMPORARY_FOLDER}}
           echo "content of ${{env.OUTPUT_GENERATION}}"
           ls -a ${{env.OUTPUT_GENERATION}}
-          echo "content of ${{env.LINUX_BINARY_FOLDER}}"
-          ls -a ${{env.LINUX_BINARY_FOLDER}}
-          echo "content of ${{env.MAC_INTEL_BINARY_FOLDER}}"
-          ls -a ${{env.MAC_INTEL_BINARY_FOLDER}}
-          echo "content of ${{env.MAC_MONE_BINARY_FOLDER}}"
-          ls -a ${{env.MAC_MONE_BINARY_FOLDER}}
+
       - name: Create archives
         run: |
           echo "Listing the source"
           ls -a .
           echo "Listing the content of the folders at the source"
           ls -a ./*
-      
+
       - name: Install the zip binary if not present
         run: |
           sudo apt update
           sudo apt install -y zip unzip
-          # zip --version >/dev/null 2>&1
-          # STATUS=$?
-          # if [ $STATUS -ne 0 ]; then
-          #   echo "::error file=<none>,line=0,endLine=0,title=zip is not installed::$STATUS"
-          # fi
 
-          # unzip --version >/dev/null 2>&1
-          # STATUS=$?
-          # if [ $STATUS -ne 0 ]; then
-          #   echo "::error file=<none>,line=0,endLine=0,title=unzip is not installed::$STATUS"
-          # fi
-          # if [ $? -ne 0 ]; then 
-          #   exit 0
-          # fi
-      
       - name: Compressing the folders into archives
         run: |
           COMMAND_OPTIONS="-0 -r"
@@ -991,12 +459,6 @@ jobs:
           echo "Found folders in the documentation: $FORMATS"
           echo "Generating archive of $(basename "${{env.OUTPUT_GENERATION}}")"
           zip $COMMAND_OPTIONS ${{env.DOCUMENTATION_ZIP_NAME}} $(basename "${{env.OUTPUT_GENERATION}}")
-          echo "Generating archive of $(basename "${{env.LINUX_BINARY_FOLDER}}")"
-          zip $COMMAND_OPTIONS ${{env.LINUX_ZIP_NAME}} $(basename "${{env.LINUX_BINARY_FOLDER}}")
-          echo "Generating archive of $(basename "${{env.MAC_MONE_BINARY_FOLDER}}")"
-          zip $COMMAND_OPTIONS ${{env.MAC_MON_ZIP_NAME}} $(basename "${{env.MAC_MONE_BINARY_FOLDER}}")
-          echo "Generating archive of $(basename "${{env.MAC_INTEL_BINARY_FOLDER}}")"
-          zip $COMMAND_OPTIONS ${{env.MAC_INTEL_ZIP_NAME}} $(basename "${{env.MAC_INTEL_BINARY_FOLDER}}")
           for item in ${FORMATS[@]}
           do
             echo "Creating zip archive: '$item'"
@@ -1015,31 +477,13 @@ jobs:
       - name: Get folders of interest
         id: output-files
         run: |
-          MMZN="${{env.MAC_MON_ZIP_NAME}}"
-          MIZN="${{env.MAC_INTEL_ZIP_NAME}}"
-          LZN="${{env.LINUX_ZIP_NAME}}"
           DZN="${{env.DOCUMENTATION_ZIP_NAME}}"
           OGRESULT="$(find ${{env.OUTPUT_GENERATION}} -maxdepth 1 -name '*.zip' -type f | tr '\n' ' ')"
-          LBFRESULT="$(find ${{env.LINUX_BINARY_FOLDER}} -maxdepth 1 -type f | tr '\n' ' ')"
-          MIBFRESULT="$(find ${{env.MAC_INTEL_BINARY_FOLDER}} -maxdepth 1 -type f | tr '\n' ' ')"
-          MMBFRESULT="$(find ${{env.MAC_MONE_BINARY_FOLDER}} -maxdepth 1 -type f | tr '\n' ' ')"
-          echo "MMZN=$MMZN" >> "$GITHUB_OUTPUT" # Files of interest
-          echo "MIZN=$MIZN" >> "$GITHUB_OUTPUT" # Files of interest
-          echo "LZN=$LZN" >> "$GITHUB_OUTPUT" # Files of interest
           echo "DZN=$DZN" >> "$GITHUB_OUTPUT" # Files of interest
           echo "OGRESULT=$OGRESULT" >> "$GITHUB_OUTPUT" # Files of interest
-          echo "LBFRESULT=$LBFRESULT" >> "$GITHUB_OUTPUT" # Files of interest
-          echo "MIBFRESULT=$MIBFRESULT" >> "$GITHUB_OUTPUT" # Files of interest
-          echo "MMBFRESULT=$MMBFRESULT" >> "$GITHUB_OUTPUT" # Files of interest
-          echo "MMZN=$MMZN"
-          echo "MIZN=$MIZN"
-          echo "LZN=$LZN"
           echo "DZN=$DZN"
           echo "OGRESULT=$OGRESULT"
-          echo "LBFRESULT=$LBFRESULT"
-          echo "MIBFRESULT=$MIBFRESULT"
-          echo "MMBFRESULT=$MMBFRESULT"
-          FILE_LIST="$MMZN $MIZN $LZN $DZN $OGRESULT $LBFRESULT $MIBFRESULT $MMBFRESULT"
+          FILE_LIST="$DZN $OGRESULT"
           echo "Final file list='$FILE_LIST'"
           echo "FOI=$(echo $FILE_LIST | tr '\n' ' ')" >> "$GITHUB_OUTPUT" # Files of interest
 
@@ -1066,7 +510,6 @@ jobs:
             echo EOF
           } >> "$GITHUB_OUTPUT" # anchor point
 
-
       - name: Publish binary as GitHub release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -1083,16 +526,15 @@ jobs:
     name: Clear the cache generated during the build time
     permissions: write-all
     runs-on: ubuntu-latest
-    needs: [export_other_formats_when_present, publish_html ]
+    needs: export_other_formats_when_present
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Delete Created cache
         env:
-          GH_TOKEN: ${{ secrets.CACHE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh cache list
           gh cache delete --all
-
