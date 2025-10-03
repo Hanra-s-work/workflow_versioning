@@ -5,6 +5,7 @@
 
 from time import sleep
 import json
+from display_tty import Disp
 
 try:
     from .shared_class import SharedInstance, FD
@@ -65,3 +66,33 @@ if __name__ == "__main__":
     print(
         f"json.dumps(SI,cls=SI.FlexibleJSONEncoder): {json.dumps(SI, cls=SI.FlexibleJSONEncoder)}, json.dumps(SI3,cls=SI.FlexibleJSONEncoder): {json.dumps(SI3, cls=SI.FlexibleJSONEncoder)}, json.dumps(SI4,cls=SI.FlexibleJSONEncoder): {json.dumps(SI4, cls=SI.FlexibleJSONEncoder)}"
     )
+
+    print("Declaring the TestClass")
+
+    class TestClass:
+        """
+            This is a class in charge of checking how the shared instance behaves in a class.
+        """
+
+        def __init__(self) -> None:
+            self.si: SharedInstance = SharedInstance()
+            self.disp: Disp = self.si.initialise_custom_loger(
+                self.__class__.__name__)
+            self.disp.log_custom_level(
+                self.si.custom_log_levels.log_success,
+                "Test class initialised"
+            )
+
+        def test(self) -> None:
+            """
+                Function in charge of making sure that the children of TestClass are accessible.
+            """
+            self.disp.log_custom_level(
+                self.si.custom_log_levels.log_success,
+                "Test function called"
+            )
+
+    print("Initialising TestClass")
+    TCI = TestClass()
+    print("Calling the test function")
+    TCI.test()
