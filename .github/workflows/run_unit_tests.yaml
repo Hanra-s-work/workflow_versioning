@@ -27,6 +27,7 @@ on:
 env:
   CWD: "./py_hello_world_lib"
   MATRIX_VERSION_PUBLISHING: "3.10"
+  MODULE_NAME: "hl_hello_world"
 
 jobs:
   increment-the-tag:
@@ -99,15 +100,12 @@ jobs:
           echo "            sys.path.append(p)" >> ${TMP_FILE}
           echo "    except Exception:" >> ${TMP_FILE}
           echo "        pass" >> ${TMP_FILE}
-          echo "m=importlib.import_module('display_tty')" >> ${TMP_FILE}
-          echo "print('display_tty loaded from', getattr(m,'__file__',None))" >> ${TMP_FILE}
+          echo "m=importlib.import_module('${{env.MODULE_NAME}}')" >> ${TMP_FILE}
+          echo "print('${{env.MODULE_NAME}} loaded from', getattr(m,'__file__',None))" >> ${TMP_FILE}
           echo "names = []" >> ${TMP_FILE}
           echo "for _, name, _ in pkgutil.walk_packages(m.__path__, prefix=m.__name__+'.'):" >> ${TMP_FILE}
           echo "    names.append(name)" >> ${TMP_FILE}
           echo "print('discovered submodules:', names)" >> ${TMP_FILE}
-          echo "if not any(n.startswith('display_tty.src') for n in names):" >> ${TMP_FILE}
-          echo "    print('ERROR: display_tty.src not found in installed package')" >> ${TMP_FILE}
-          echo "    sys.exit(2)" >> ${TMP_FILE}
           echo "print('Packaging sanity import check passed.')" >> ${TMP_FILE}
           python ${TMP_FILE}
 
