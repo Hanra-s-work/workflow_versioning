@@ -85,9 +85,9 @@ jobs:
       - name: Packaging sanity — import installed package
         run: |
           cd ${{env.CWD}}
-          DESTINATION_DIR="${{env.CWD}}/../temporary_import_test"
-          cd ${DESTINATION_DIR}
+          DESTINATION_DIR="/tmp/temporary_import_test"
           mkdir -p ${DESTINATION_DIR}
+          cd ${DESTINATION_DIR}
           TMP_FILE=${DESTINATION_DIR}/tester.py
           echo "import os" >> ${TMP_FILE}
           echo "import sys" >> ${TMP_FILE}
