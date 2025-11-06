@@ -2,3 +2,15 @@
 *.o
 *.pyc
 **/__pycache__/**
+
+# No python environement
+env
+lenv
+menv
+wenv
+venv
+.env
+.lenv
+.menv
+.wenv
+.venv

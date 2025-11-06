@@ -85,22 +85,24 @@ jobs:
       - name: Packaging sanity — import installed package
         run: |
           cd ${{env.CWD}}
-          python -m pip install --upgrade pip
-          TMP_FILE=./tester.py
-          # write the python tester file line-by-line for readability
-          echo "import importlib" > ${TMP_FILE}
-          echo "import pkgutil" >> ${TMP_FILE}
-          echo "import sys" >> ${TMP_FILE}
+          DESTINATION_DIR="/tmp/temporary_import_test"
+          cd ${DESTINATION_DIR}
+          mkdir -p ${DESTINATION_DIR}
+          TMP_FILE=${DESTINATION_DIR}/tester.py
           echo "import os" >> ${TMP_FILE}
-          echo "workspace=os.path.abspath(os.getcwd())" >> ${TMP_FILE}
-          echo "sys.path = []" >> ${TMP_FILE}
+          echo "import sys" >> ${TMP_FILE}
+          echo "import pkgutil" >> ${TMP_FILE}
+          echo "import importlib" > ${TMP_FILE}
+          echo "workspace = os.path.abspath(os.getcwd())" >> ${TMP_FILE}
+          echo "tmp_path = []" >> ${TMP_FILE}
           echo "for p in sys.path:" >> ${TMP_FILE}
           echo "    try:" >> ${TMP_FILE}
           echo "        if p and os.path.abspath(p) != workspace:" >> ${TMP_FILE}
-          echo "            sys.path.append(p)" >> ${TMP_FILE}
+          echo "            tmp_path.append(p)" >> ${TMP_FILE}
           echo "    except Exception:" >> ${TMP_FILE}
           echo "        pass" >> ${TMP_FILE}
-          echo "m=importlib.import_module('${{env.MODULE_NAME}}')" >> ${TMP_FILE}
+          echo "sys.path = tmp_path" >> ${TMP_FILE}
+          echo "m = importlib.import_module('${{env.MODULE_NAME}}')" >> ${TMP_FILE}
           echo "print('${{env.MODULE_NAME}} loaded from', getattr(m,'__file__',None))" >> ${TMP_FILE}
           echo "names = []" >> ${TMP_FILE}
           echo "for _, name, _ in pkgutil.walk_packages(m.__path__, prefix=m.__name__+'.'):" >> ${TMP_FILE}
