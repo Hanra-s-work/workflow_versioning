@@ -144,10 +144,10 @@ jobs:
         run: |
           cd ${{env.CWD}}
           DESTINATION_DIR="/tmp/temporary_import_test"
+          TMP_FILE="${DESTINATION_DIR}/tester.py"
           mkdir -p ${DESTINATION_DIR}
           cd ${DESTINATION_DIR}
-          TMP_FILE=${DESTINATION_DIR}/tester.py
-          echo "import os" >> ${TMP_FILE}
+          echo "import os" > ${TMP_FILE}
           echo "import sys" >> ${TMP_FILE}
           echo "import pkgutil" >> ${TMP_FILE}
           echo "import importlib" > ${TMP_FILE}
