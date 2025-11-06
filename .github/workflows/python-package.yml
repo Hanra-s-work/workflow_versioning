@@ -147,10 +147,11 @@ jobs:
           TMP_FILE="${DESTINATION_DIR}/tester.py"
           mkdir -p ${DESTINATION_DIR}
           cd ${DESTINATION_DIR}
-          echo "import os" > ${TMP_FILE}
+          echo "" > ${TMP_FILE}
+          echo "import os" >> ${TMP_FILE}
           echo "import sys" >> ${TMP_FILE}
           echo "import pkgutil" >> ${TMP_FILE}
-          echo "import importlib" > ${TMP_FILE}
+          echo "import importlib" >> ${TMP_FILE}
           echo "workspace = os.path.abspath(os.getcwd())" >> ${TMP_FILE}
           echo "tmp_path = []" >> ${TMP_FILE}
           echo "for p in sys.path:" >> ${TMP_FILE}
