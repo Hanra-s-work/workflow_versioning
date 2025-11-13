@@ -1,0 +1,3 @@
+display_tty==1.1.16
+mysql-connector-python==9.5.0
+redis==7.0.1

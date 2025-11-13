@@ -1,2 +1,2 @@
 # A logger library
-display-tty ==1.1.15
+display-tty ==1.1.16
