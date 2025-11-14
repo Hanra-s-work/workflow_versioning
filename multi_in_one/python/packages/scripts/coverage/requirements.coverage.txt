@@ -2,5 +2,5 @@
 coverage ==7.11.3
 
 # The pytest coverage friendly library
-pytest-cov ==6.3.0
+pytest-cov ==7.0.0
 
