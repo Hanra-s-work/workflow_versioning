@@ -1,2 +1,2 @@
 # The pyinstaller library that is often used to create binaries
-pyinstaller ==6.16.0
+pyinstaller ==6.17.0
