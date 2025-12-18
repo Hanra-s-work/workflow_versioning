@@ -17,7 +17,7 @@ setuptools.setup(
     description="A module that provides the good old 'Hello World !' string",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Hanra-s-work/workflow_verisoning",
+    url="https://github.com/Hanra-s-work/workflow_versioning",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
