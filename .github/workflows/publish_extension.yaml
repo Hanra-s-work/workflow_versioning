@@ -148,7 +148,7 @@ jobs:
         run: npx vsce package -o asperheader-${{ matrix.vscode_version }}-${{ steps.set-package-version.outputs.TAG_VERSION }}.vsix
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5.0.0
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: vsix-${{ matrix.vscode_version }}
           path: "${{env.WORKING_DIRECTORY}}/*.vsix"
@@ -169,7 +169,7 @@ jobs:
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v6.0.0
+      - uses: actions/download-artifact@v7.0.0
         with:
           path: dist
 
