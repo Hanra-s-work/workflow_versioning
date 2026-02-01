@@ -1,2 +1,2 @@
 # a 100% python written terminal that will allow you to partially insterract with you system through your program
-tty-ov ==1.0.108
+tty-ov ==1.0.115
