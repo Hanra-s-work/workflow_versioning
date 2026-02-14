@@ -1,2 +1,2 @@
-display_tty==1.1.16
+display_tty==1.1.17
 aiosqlite==0.22.1
