@@ -1,6 +1,5 @@
 name: hl-hello-world-pypi
 
-# version: 1.0.10
 # Version log:
 # 1.0.0: Initial version
 # 1.0.1: Add the xvfb library to the actions for any graphical environments

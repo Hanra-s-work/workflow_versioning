@@ -1,6 +1,5 @@
 name: hl-hello-world-gh-packages
 
-# version: 1.0.13
 # Version log:
 # 1.0.0: Initial version
 # 1.0.1: Add the xvfb library to the actions for any graphical environments
