@@ -1,1 +1,1 @@
-display-tty ==1.1.16
+display-tty ==1.1.17
