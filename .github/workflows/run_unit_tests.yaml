@@ -12,6 +12,7 @@ name: run_unit_tests
 # 1.0.7: Update code to use python slim containers instead of full fledged ubuntu containers.# 1.0.11: Update code to use python slim containers when terminal graphic interfaces where not required, otherwise fallback on the full fledged containers
 # 1.0.8: Update code to use non-root containers if required.
 # 1.0.9: Update the code to try and import package once built
+# 1.0.10: Add python version 3.14 to the set of tests
 
 on:
   push:
@@ -26,7 +27,6 @@ on:
 
 env:
   CWD: "./py_hello_world_lib"
-  MATRIX_VERSION_PUBLISHING: "3.10"
   MODULE_NAME: "hl_hello_world"
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - name: Checkout code
