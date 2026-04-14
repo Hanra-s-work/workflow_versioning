@@ -1,2 +1,2 @@
 # The pytest dependency to ease program testing
-pytest == 8.4.1
+pytest == 9.0.3
