@@ -1,2 +1,2 @@
 # The build library to streamline the generation of a python library
-build ==1.4.0
+build ==1.6.1
