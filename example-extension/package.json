@@ -41,7 +41,7 @@
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
     "eslint": "^10.0.0",
-    "esbuild": "^0.27.0",
+    "esbuild": "^0.28.0",
     "npm-run-all2": "^8.0.0",
     "typescript": "^5.9.2",
     "@vscode/test-cli": "^0.0.12",
